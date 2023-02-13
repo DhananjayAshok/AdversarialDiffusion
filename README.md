@@ -1,2 +1,3 @@
 # AdversarialDiffusion
-Diffusion Models for Adversarial Image Generation and Denoising
+Diffusion Models for Adversarial Attack Generation
+
