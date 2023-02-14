@@ -12,25 +12,17 @@ class ImageAttack:
             self.params = {"eps": 0.001}
 
     def __call__(
-        self, model, input_batch, true_labels, target_labels=None, preprocessing=None
-    ):
+        self, model, input_batch, true_labels, target_labels=None, preprocessing=None):
         attack = self.attack_class(model, **self.params)
         attack.set_normalization_used(mean=list(preprocessing['mean']), std=list(preprocessing['std']))
         return attack(input_batch, true_labels)
 
     
 class AttackSet:
-    def __init__(self, attacks, models, preprocessings):
+    def __init__(self, attacks):
         self.attacks = attacks
-        self.models = models
-        self.preprocessings = preprocessings
-        self.n_models = len(models)
-        assert self.n_models == len(self.preprocessings)
         
-    def sample(self, input_batch, true_labels):
-        i = choice(range(self.n_models))
-        model = self.models[i]
-        preprocessing = self.preprocessings[i]
+    def __call__(self, model, input_batch, true_labels, preprocessing=None):
         attack = choice(self.attacks)
         return attack(model, input_batch, true_labels, preprocessing=preprocessing)
         

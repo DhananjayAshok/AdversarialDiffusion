@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
+from torch.utils.data import DataLoader
 
 
 def safe_mkdir(path, force_clean=False):
@@ -273,6 +274,39 @@ def analyze_density_result_array(arr, preprint="", indent="", show_full=False):
     return m, ma, mi
 
 
+def measure_attack_success(mixture_dset, attack, model=None):
+    dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
+    metric = []
+    for index, data in dataloader:
+        X, y = data
+        if model is not None:
+            model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
+        else:
+            model_list = mixture_dset.models[index]
+        for s_model in model_list:
+            advs = attack(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessing)
+            metrics = get_attack_success_measures(s_model, X, advs, y)
+            metric.append(metrics[0])
+    return np.array(metric).mean()
+
+
+def measure_attack_model_success(mixture_dset, attack_model, model=None):
+    dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
+    metric = []
+    for index, data in dataloader:
+        X, y = data
+        if model is not None:
+            model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
+        else:
+            model_list = mixture_dset.models[index]
+        for s_model in model_list:
+            advs = attack_model(X)
+            metrics = get_attack_success_measures(s_model, X, advs, y)
+            metric.append(metrics[0])
+    return np.array(metric).mean()
+
+
 class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model_path = "models"
     # device = "cpu"
