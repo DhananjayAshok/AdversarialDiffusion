@@ -8,12 +8,9 @@ from torch.utils.data import DataLoader
 
 
 def safe_mkdir(path, force_clean=False):
-    if not os.path.exists(path):
-        os.mkdir(path)
-    else:
-        if force_clean:
-            os.rmdir(path)
-            os.mkdir(path)
+    if os.path.exists(path) and force_clean:
+        os.rmdir(path)
+    os.makedirs(path, exist_ok=True)
     return
 
 

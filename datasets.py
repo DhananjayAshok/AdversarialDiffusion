@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 import torchvision.datasets as ds
 import torchvision.transforms as transforms
 import numpy as np
@@ -8,8 +7,7 @@ import utils
 from utils import safe_mkdir
 
 data_root = "data/"
-DATASETS = {"cifar10": ds.CIFAR10, "caltech101": ds.Caltech101, "mnist": ds.MNIST}
-NUM_LABELS = {"cifar10": 10, "caltech101": 101, "mnist": 10}
+NUM_LABELS = {ds.CIFAR10: 10, ds.Caltech101: 101, ds.MNIST: 10, ds.FashionMNIST: 10, ds.KMNIST: 10}
 
 
 def get_torchvision_dataset(dataset_class, train=False):
@@ -45,7 +43,7 @@ def get_torchvision_dataset(dataset_class, train=False):
             [
                 transforms.Resize(size=(28, 28)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.127,), std=(0.2959,))
+                #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
         )
 
@@ -56,7 +54,7 @@ def get_torchvision_dataset(dataset_class, train=False):
             [
                 transforms.Resize(size=(28, 28)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.127,), std=(0.2959,))
+                #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
         )
 
@@ -65,7 +63,7 @@ def get_torchvision_dataset(dataset_class, train=False):
             [
                 transforms.Resize(size=(28, 28)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.127,), std=(0.2959,))
+                #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
         )
 
@@ -122,13 +120,18 @@ class DatasetAndModels(torch.utils.data.Dataset):
         :param train: split of data
         """
         assert len(dataset_classes) > 0
-        datasets = []
+        self.datasets = []
+        self.preprocessings = []
         for component in dataset_classes:
-            datasets.append(get_torchvision_dataset(component, train=train))
-        self.datasets = datasets
-        self.preprocessings = [utils.normalize_to_dict(datasets[i].transform[2]) for i in range(len(datasets))]
-        # Hard coded normalize on 2
-        self.lengths = [len(d) for d in datasets]
+            dataset = get_torchvision_dataset(component, train=train)
+            self.datasets.append(dataset)
+            if len(dataset.transform.transforms) < 3:
+                transform = transforms.Normalize(mean=0, std=1)
+            else:
+                transform = dataset.transform.transforms[2] # Hard code normalize on 2
+            self.preprocessings.append(utils.normalize_to_dict(transform))
+
+        self.lengths = [len(d) for d in self.datasets]
         self.models = model_list
         assert len(self.model_list) == len(self.datasets)
         for element in model_list:
@@ -152,3 +155,4 @@ class DatasetAndModels(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.length
+
