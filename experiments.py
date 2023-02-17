@@ -1,9 +1,7 @@
-from attacks import ImageAttack, AttackSet, ATTACKS
-from datasets import DatasetAndModels
-from models import get_model
+from attacks import ImageAttack, ATTACKS
 from torchvision.models import resnet50
 from torchvision.datasets import MNIST
-from utils import measure_attack_success, measure_attack_model_success
+from utils import measure_attack_success, measure_attack_model_success, get_common
 
 
 def get_diffusion(mixture_dset, attack_set, save_name=""):
@@ -12,17 +10,6 @@ def get_diffusion(mixture_dset, attack_set, save_name=""):
 
 def load_diffusion(save_name):
     return lambda x: x
-
-
-def get_common(target_model_archs, attacks, dataset_classes, train=True):
-    model_list = []
-    for dset_class in dataset_classes:
-        for model, save_suffix in target_model_archs:
-            m = get_model(model, dset_class, save_suffix)
-            model_list.append(m)
-    attack_set = AttackSet(attacks)
-    mixture_dset = DatasetAndModels(dataset_classes=dataset_classes, model_list=model_list, train=train)
-    return attack_set, mixture_dset
 
 
 def experiment_1(target_model_arch, attack, dataset_class, experiment_name, train=False):

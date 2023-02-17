@@ -307,3 +307,20 @@ class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_path = "models"
     # device = "cpu"
+
+
+def get_common(target_model_archs, attacks, dataset_classes, train=True):
+    from attacks import AttackSet
+    from datasets import DatasetAndModels
+    from models import get_model
+    model_list = []
+    for dset_class in dataset_classes:
+        model_sublist = []
+        for model, save_suffix in target_model_archs:
+            model_inst = model()
+            m = get_model(model_inst, dset_class, save_suffix)
+            model_sublist.append(m)
+        model_list.append(model_sublist)
+    attack_set = AttackSet(attacks)
+    mixture_dset = DatasetAndModels(dataset_classes=dataset_classes, model_list=model_list, train=train)
+    return attack_set, mixture_dset

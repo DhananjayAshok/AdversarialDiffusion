@@ -1,10 +1,10 @@
 import torch
 import torchvision.datasets as ds
 import torchvision.transforms as transforms
+from torch.utils.data import Subset
 import numpy as np
 
-import utils
-from utils import safe_mkdir
+from utils import safe_mkdir, Parameters, normalize_to_dict
 
 data_root = "data/"
 NUM_LABELS = {ds.CIFAR10: 10, ds.Caltech101: 101, ds.MNIST: 10, ds.FashionMNIST: 10, ds.KMNIST: 10}
@@ -105,14 +105,14 @@ def sample_torch_dataset(dset, batch_size=32, shuffle=False):
 def get_torchvision_dataset_sample(dataset_class, train=False, batch_size=32):
     dset = get_torchvision_dataset(dataset_class, train=train)
     X, y = sample_torch_dataset(dset, batch_size=batch_size, shuffle=True)
-    X = X.to(utils.Parameters.device)
-    y = y.to(utils.Parameters.device)
+    X = X.to(Parameters.device)
+    y = y.to(Parameters.device)
     return X, y.long()
 
 
 class DatasetAndModels(torch.utils.data.Dataset):
 
-    def __init__(self, dataset_classes, model_list, train=True):
+    def __init__(self, dataset_classes, model_list, train=True, force_balance=False):
         """
 
         :param dataset_classes: list of torchvision.dataset classes
@@ -126,14 +126,26 @@ class DatasetAndModels(torch.utils.data.Dataset):
             dataset = get_torchvision_dataset(component, train=train)
             self.datasets.append(dataset)
             if len(dataset.transform.transforms) < 3:
-                transform = transforms.Normalize(mean=0, std=1)
+                transform = transforms.Normalize(mean=(0,), std=(1,))
             else:
                 transform = dataset.transform.transforms[2] # Hard code normalize on 2
-            self.preprocessings.append(utils.normalize_to_dict(transform))
-
+            self.preprocessings.append(normalize_to_dict(transform))
         self.lengths = [len(d) for d in self.datasets]
+        if force_balance:
+            tmp_datasets = self.datasets
+            self.datasets = []
+            min_length = min(self.lengths)
+            for dataset in tmp_datasets:
+                if len(dataset) == min_length:
+                    self.datasets.append(dataset)
+                else:
+                    rand_indices = np.arange(len(dataset))
+                    np.random.shuffle(rand_indices)
+                    new_indices = rand_indices[:min_length]
+                    self.datasets.append(Subset(dataset, new_indices))
+            self.lengths = [min_length for d in range(len(self.datasets))]
         self.models = model_list
-        assert len(self.model_list) == len(self.datasets)
+        assert len(self.models) == len(self.datasets)
         for element in model_list:
             assert len(element) > 0
         self.offsets = np.cumsum(self.lengths)
@@ -155,4 +167,3 @@ class DatasetAndModels(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.length
-

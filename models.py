@@ -6,17 +6,17 @@ import numpy as np
 import os
 from tqdm import tqdm
 from datasets import get_torchvision_dataset
-import utils
+from utils import Parameters,safe_mkdir
 
 
-def get_model(model_arch_fn, dset_class, save_suffix):
+def get_model(model, dset_class, save_suffix, n_classes=10, input_channels=1):
+    modify_network(model, n_classes, input_channels)
     if save_suffix != "":
         save_suffix = f"_{save_suffix}"
-    model_path = os.path.join(utils.Parameters.model_path, model_arch_fn.__name__+save_suffix,
+    model_path = os.path.join(Parameters.model_path, model.__class__.__name__+save_suffix,
                               dset_class.__name__, "final_chkpt.pt")
     state_dict = torch.load(model_path)
-    model = model_arch_fn()
-    model.load_state_dict(state_dict).eval()
+    model.load_state_dict(state_dict)
     return model
 
 
@@ -41,7 +41,7 @@ def modify_network(model, n_classes, input_channels):
 def train(model, dataset_class, n_classes=10, input_channels=1, num_epochs=5, batch_size=32, lr=0.001, train_size=0.9,
           early_stopping=1,
           save_suffix=""):
-    device = utils.Parameters.device
+    device = Parameters.device
     whole_train_dataset = get_torchvision_dataset(dataset_class, train=True)
     train_size_int = int(len(whole_train_dataset) * train_size)
     rand_indices = np.arange(len(whole_train_dataset))
@@ -70,11 +70,11 @@ def train(model, dataset_class, n_classes=10, input_channels=1, num_epochs=5, ba
 
     if save_suffix != "":
         save_suffix = f"_{save_suffix}"
-    checkpoint_path = os.path.join(utils.Parameters.model_path, model.__class__.__name__+save_suffix,
+    checkpoint_path = os.path.join(Parameters.model_path, model.__class__.__name__+save_suffix,
                                    dataset_class.__name__)
-    final_path = os.path.join(utils.Parameters.model_path, model.__class__.__name__+save_suffix, dataset_class.__name__,
+    final_path = os.path.join(Parameters.model_path, model.__class__.__name__+save_suffix, dataset_class.__name__,
                               "final_chkpt.pt")
-    utils.safe_mkdir(checkpoint_path)
+    safe_mkdir(checkpoint_path)
     best_val_loss = np.inf
     epochs_without_improvement = 0
     print(f"Starting Training for {dataset_class.__name__} on {model.__class__.__name__+save_suffix}")
@@ -114,7 +114,7 @@ def train(model, dataset_class, n_classes=10, input_channels=1, num_epochs=5, ba
 
 
 def _val(model, test_loader, loss):
-    device = utils.Parameters.device
+    device = Parameters.device
     with torch.no_grad():
         number_corrects = 0
         number_samples = 0
