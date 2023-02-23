@@ -13,7 +13,8 @@ def get_model(model, dset_class, save_suffix, n_classes=10, input_channels=1):
     modify_network(model, n_classes, input_channels)
     if save_suffix != "":
         save_suffix = f"_{save_suffix}"
-    model_path = os.path.join(Parameters.model_path, model.__class__.__name__+save_suffix,
+    model_path = os.path.join(Parameter
+    s.model_path, model.__class__.__name__+save_suffix,
                               dset_class.__name__, "final_chkpt.pt")
     state_dict = torch.load(model_path)
     model.load_state_dict(state_dict)

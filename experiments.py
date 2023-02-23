@@ -4,6 +4,7 @@ from torchvision.datasets import MNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common
 
 
+# TODO: add code the attack model.
 def get_diffusion(mixture_dset, attack_set, save_name=""):
     return lambda x: x
 
@@ -12,7 +13,16 @@ def load_diffusion(save_name):
     return lambda x: x
 
 
-def experiment_1(target_model_arch, attack, dataset_class, experiment_name, train=False):
+def experiment_1(target_model_arch, attack, dataset_class, experiment_name = 'single', train=False):
+    '''
+    Single target model, single attack on single dataset.
+    params:
+        target_model_arch: one target classifier.
+        attack: corresponding i th attack will be used to generate adversarial examples.
+        dataset_class: corresponding i th dataset class.
+        experiment_name: auto generate as combo of target_model_arch-attack-dataset_class-single
+        train: whether to train the model or not.
+    '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
         attack_model = get_diffusion(mixture_dset, attack_set, save_name=experiment_name)
@@ -39,8 +49,8 @@ def experiment_2(target_model_arch, attacks, dataset_class, experiment_name, tra
         attack_success = measure_attack_success(mixture_dset, attack, model=model)
         attack_results.append(attack_success)
     return attack_results, attack_model_success
-  
-  
+
+
 def experiment_3(train_model_archs, attack, train_dataset_classes, test_model_archs,
                  test_dataset_classes, experiment_name, train=False):
     if len(test_dataset_classes) == 0:
