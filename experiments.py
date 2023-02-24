@@ -3,7 +3,6 @@ from torchvision.models import resnet50
 from torchvision.datasets import MNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common
 
-
 # TODO: add code the attack model.
 def get_diffusion(mixture_dset, attack_set, save_name=""):
     return lambda x: x
@@ -13,7 +12,7 @@ def load_diffusion(save_name):
     return lambda x: x
 
 
-def experiment_1(target_model_arch, attack, dataset_class, experiment_name = 'single', train=False):
+def experiment_1(target_model_arch, attack, dataset_class, experiment_name = 'single_model-single_attack-single_dataset', train=False):
     '''
     Single target model, single attack on single dataset.
     params:
@@ -35,7 +34,18 @@ def experiment_1(target_model_arch, attack, dataset_class, experiment_name = 'si
     return attack_success, attack_model_success
 
 
-def experiment_2(target_model_arch, attacks, dataset_class, experiment_name, train=False):
+def experiment_2(target_model_arch, attacks, dataset_class, experiment_name = 'single_model-multiple_attack-single_dataset', train=False):
+    '''
+    single target model, multiple attack on single dataset.
+
+    [target_model_arch], attacks, [dataset_class]
+    params:
+        target_model_arch: one target classifier.
+        attack: corresponding i th attack will be used to generate adversarial examples.
+        dataset_class: corresponding i th dataset class.
+        experiment_name: auto generate as combo of target_model_arch-attack-dataset_class-single
+        train: whether to train the model or not.
+    '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
         attack_model = get_diffusion(mixture_dset, attack_set, save_name=experiment_name)
@@ -45,7 +55,7 @@ def experiment_2(target_model_arch, attacks, dataset_class, experiment_name, tra
     model = mixture_dset.models[0][0]
     attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
     attack_results = []
-    for attack in attacks:
+    for attack in attacks: # what is the efficacy on every attack.
         attack_success = measure_attack_success(mixture_dset, attack, model=model)
         attack_results.append(attack_success)
     return attack_results, attack_model_success
