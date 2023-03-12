@@ -1,4 +1,5 @@
 import pdb
+
 from attacks import ImageAttack, ATTACKS
 from torchvision.datasets import MNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common, dict_to_namespace
@@ -8,17 +9,18 @@ import torch
 import numpy as np
 from torch.utils.data import Subset, DataLoader
 from numpy.random import choice
-from utils import Parameters,safe_mkdir
+from utils import Parameters,safe_mkdir, DummyModel
 import os
 from tqdm import tqdm
 from pathlib import Path
+from torchvision.models import resnet50, resnet18, resnet34
 
 # TODO: add code the attack model.
 def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch_size=32, lr=0.001, train_size=0.9,
           early_stopping=1,
           save_name=""):
 
-    config_file = f'DiffPure/{diff_model_name}_config.yaml'
+    config_file = f'DiffPure/configs/{diff_model_name}_config.yml'
 
     with open(config_file, 'r') as stream:
         config_dict = yaml.safe_load(stream)
@@ -30,16 +32,21 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
 
     # load diffpure model.
     attack_model = DiffPure(args, config)
+    attack_model = DummyModel()
 
-    from torchsummary import summary
-    print(summary(attack_model, input_size=(3, 64, 64)))
+    # from torchsummary import summary
+    # print(summary(attack_model, input_size=(3, 64, 64)))
 
     # sanity checks.
-    image = torch.from_numpy(np.random.randint(0, 255, size=(5, 3, 64, 64)).astype(np.uint8))
-    out = attack_model(image)
-    print(out.shape) # this should work for you. ensure that, if not reach out.
+    # image = torch.from_numpy(np.random.randint(0, 255, size=(5, 3, 64, 64)).astype(np.uint8))
+    # out = attack_model(image)
+    # print(out.shape) # this should work for you. ensure that, if not reach out.
     # also the shape should be (1, 64, 64) but i couldnt check that.
     # if not we need to add a conv layer to make it that way.
+
+    image = torch.randn(size=(2, 3, 64, 64))
+    out = attack_model(image)
+    print(out.shape)
 
     # from torchsummary import summary
     # summary(model=diffpure, input_size=(3, 64, 64))
@@ -86,8 +93,8 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             for idx in range(len(idxs)):
                 clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
                 s_model = choice(mixture_dset.models[idx])
-                attacked_img = attack_set.attack(s_model, clean_img, true_label,
-                                                 preprocessing=mixture_dset.preprocessings[idx])
+                attacked_img = attack_set(s_model, clean_img, true_label,
+                                          preprocessing=mixture_dset.preprocessings[idx])
                 attacked_imgs.append(attacked_img)
             attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
             clean_imgs = batch_data[0].to(device)
@@ -134,8 +141,8 @@ def _val(model, test_loader, mixture_dset, attack_set, criterion):
             for idx in range(len(idxs)):
                 clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
                 s_model = choice(mixture_dset.models[idx])
-                attacked_img = attack_set.attack(s_model, clean_img, true_label,
-                                                 preprocessing=mixture_dset.preprocessings[idx])
+                attacked_img = attack_set(s_model, clean_img, true_label,
+                                          preprocessing=mixture_dset.preprocessings[idx])
                 attacked_imgs.append(attacked_img)
             attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
             clean_imgs = batch_data[0].to(device)
@@ -151,14 +158,16 @@ def load_diffusion(diff_model_name, save_name):
     save_suffix = ""
     if save_name != "":
         save_suffix = f"_{save_name}"
+
     checkpoint_path = os.path.join(Parameters.model_path, diff_model_name + save_suffix)
     final_path = os.path.join(Parameters.model_path, diff_model_name + save_suffix,
                               "final_chkpt.pt")
-    state_dict = torch.load(final_path)
 
     assert Path(final_path).exists()
 
-    config_file = f'DiffPure/{diff_model_name}_config.yaml'
+    state_dict = torch.load(final_path)
+
+    config_file = f'DiffPure/{diff_model_name}_config.yml'
     with open(config_file, 'r') as stream:
         config_dict = yaml.safe_load(stream)
     config_namespace = dict_to_namespace(config_dict)
@@ -173,7 +182,8 @@ def load_diffusion(diff_model_name, save_name):
 
     return attack_model
 
-def experiment_1(diff_model_name, target_model_arch, attack, dataset_class, experiment_name = 'single_model-single_attack-single_dataset', train=False):
+def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
+                 experiment_name = 'single_model-single_attack-single_dataset', train=True):
     '''
     Single target model, single attack on single dataset.
     params:
@@ -187,16 +197,16 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class, expe
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
     else:
-        attack_model = load_diffusion(experiment_name)
+        attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
-    # pdb.set_trace()
     attack_success = measure_attack_success(model, mixture_dset, attack)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model, model=model)
     return attack_success, attack_model_success
 
 
-def experiment_2(target_model_arch, attacks, dataset_class, experiment_name = 'single_model-multiple_attack-single_dataset', train=False):
+def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
+                 experiment_name = 'single_model-multiple_attack-single_dataset', train=False):
     '''
     single target model, multiple attack on single dataset.
 
@@ -210,9 +220,9 @@ def experiment_2(target_model_arch, attacks, dataset_class, experiment_name = 's
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
-        attack_model = get_diffusion(mixture_dset, attack_set, save_name=experiment_name)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
     else:
-        attack_model = load_diffusion(experiment_name)
+        attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
@@ -245,8 +255,9 @@ def run_experiment1():
     attack = ImageAttack(ATTACKS['pgd_l2'])
     dataset_class = MNIST
     experiment_name = "first"
-    train = False
-    a, b = experiment_1((target_model_arch, '50'), attack, dataset_class, experiment_name, train=train)
+    train = True
+    a, b = experiment_1('guided_diffusion', (target_model_arch, '50'), attack, dataset_class,
+                        experiment_name, train=train)
     print(a)
     print(b)
     return a, b

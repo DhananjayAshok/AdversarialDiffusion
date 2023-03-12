@@ -336,9 +336,11 @@ def dict_to_namespace(d):
             setattr(namespace, k, v)
     return namespace
 
-class IdentityModel(torch.nn.Module):
+class DummyModel(torch.nn.Module):
     def __init__(self):
-        super(IdentityModel, self).__init__()
+        super(DummyModel, self).__init__()
+        self.conv = torch.nn.Conv2d(3, 3, (3, 3), stride=1, padding=2)
 
     def forward(self, x):
+        x = self.conv(x)
         return x

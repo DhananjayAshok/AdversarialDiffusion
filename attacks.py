@@ -17,12 +17,12 @@ class ImageAttack:
         attack.set_normalization_used(mean=list(preprocessing['mean']), std=list(preprocessing['std']))
         return attack(input_batch, true_labels)
 
-    
+
 class AttackSet:
     def __init__(self, attacks, params=None):
         self.attacks = attacks
         self.params = params
-        
+
     def __call__(self, model, input_batch, true_labels, preprocessing=None):
         attack = ImageAttack(choice(self.attacks), self.params)
         return attack(model, input_batch, true_labels, preprocessing=preprocessing)
