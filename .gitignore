@@ -132,3 +132,4 @@ data/
 models/
 *.pt
 *.pth
+.DS_Store
