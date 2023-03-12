@@ -1,0 +1,29 @@
+{
+  "args": {
+    "config": "celeba.yml",
+    "data_seed": 5,
+    "seed": 122,
+    "exp": "./exp_results",
+    "verbose": "info",
+    "image_folder": "./exp_results/celebahq-adv-500-eps0.062745098-2x4-disc-bpda-rev",
+    "ni": false,
+    "sample_step": 1,
+    "t": 500,
+    "t_delta": 15,
+    "rand_t": false,
+    "diffusion_type": "celebahq-ddpm",
+    "score_type": "guided_diffusion",
+    "eot_iter": 20,
+    "use_bm": false,
+    "eot_defense_reps": 20,
+    "eot_attack_reps": 15,
+    "domain": "celebahq",
+    "classifier_name": "celebahq__Eyeglasses",
+    "partition": "val",
+    "adv_batch_size": 2,
+    "num_sub": 1000,
+    "adv_eps": 0.062745098
+  },
+  "config": {
+    'data': {},Namespace(dataset='CelebA_HQ', category='celeba', image_size=256, channels=3, logit_transform=False, uniform_dequantization=False, gaussian_dequantization=False, random_flip=True, rescaled=True, num_workers=32), 'model': Namespace(type='simple', in_channels=3, out_ch=3, ch=128, ch_mult=[1, 1, 2, 2, 4, 4], num_res_blocks=2, attn_resolutions=[16], dropout=0.0, var_type='fixedsmall', ema_rate=0.999, ema=True, resamp_with_conv=True), 'diffusion': Namespace(beta_schedule='linear', beta_start=0.0001, beta_end=0.02, num_diffusion_timesteps=1000), 'sampling': Namespace(batch_size=8, last_only=True), 'device': device(type='cpu')}
+}

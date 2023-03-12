@@ -1,0 +1,22 @@
+ngpus: 0, adv_batch_size: 0
+starting the model and loader...
+Traceback (most recent call last):
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv_bpda.py", line 280, in <module>
+    robustness_eval(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv_bpda.py", line 193, in robustness_eval
+    model = SDE_Adv_Model(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv_bpda.py", line 61, in __init__
+    self.resnet = get_image_classifier(args.classifier_name).to(config.device)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/utils.py", line 248, in get_image_classifier
+    model = ClassifierWrapper(attribute, ckpt_path=ckpt_path)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/classifiers/attribute_classifier.py", line 61, in __init__
+    self.net = load_attribute_classifier(classifier_name, ckpt_path).eval().to(device)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/classifiers/attribute_classifier.py", line 49, in load_attribute_classifier
+    ckpt = torch.load(ckpt_path)
+  File "/Users/hariharan/hari_works/virtualenv/lib/python3.9/site-packages/torch/serialization.py", line 771, in load
+    with _open_file_like(f, 'rb') as opened_file:
+  File "/Users/hariharan/hari_works/virtualenv/lib/python3.9/site-packages/torch/serialization.py", line 270, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/Users/hariharan/hari_works/virtualenv/lib/python3.9/site-packages/torch/serialization.py", line 251, in __init__
+    super(_open_file, self).__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: 'pretrained/celebahq/Eyeglasses/net_best.pth'

@@ -1,0 +1,27 @@
+ngpus: 0, adv_batch_size: 0
+starting the model and loader...
+using cifar10 wideresnet-28-10...
+diffusion_type: ddpm
+> /Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_guided.py(34)__init__()
+-> print(f'model_config: {model_config}')
+(Pdb) model_config: {'image_size': 64, 'num_channels': 128, 'num_res_blocks': 8, 'num_heads': 4, 'num_heads_upsample': -1, 'num_head_channels': -1, 'attention_resolutions': '16,8', 'channel_mult': '', 'dropout': 0.1, 'class_cond': False, 'use_checkpoint': False, 'use_scale_shift_norm': True, 'resblock_updown': False, 'use_fp16': False, 'use_new_attention_order': False, 'learn_sigma': False, 'diffusion_steps': 1000, 'noise_schedule': 'linear', 'timestep_respacing': '', 'use_kl': False, 'predict_xstart': False, 'rescale_timesteps': False, 'rescale_learned_sigmas': False}
+> /Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_guided.py(35)__init__()
+-> model, diffusion = create_model_and_diffusion(**model_config)
+(Pdb) > /Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_guided.py(37)__init__()
+-> model.requires_grad_(False).eval().to(self.device)
+(Pdb) Traceback (most recent call last):
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 328, in <module>
+    robustness_eval(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 228, in robustness_eval
+    model = SDE_Adv_Model(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 47, in __init__
+    self.runner = GuidedDiffusion(args, config, device=config.device)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_guided.py", line 37, in __init__
+    model.requires_grad_(False).eval().to(self.device)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_guided.py", line 37, in __init__
+    model.requires_grad_(False).eval().to(self.device)
+  File "/usr/local/Cellar/python@3.9/3.9.16/Frameworks/Python.framework/Versions/3.9/lib/python3.9/bdb.py", line 88, in trace_dispatch
+    return self.dispatch_line(frame)
+  File "/usr/local/Cellar/python@3.9/3.9.16/Frameworks/Python.framework/Versions/3.9/lib/python3.9/bdb.py", line 113, in dispatch_line
+    if self.quitting: raise BdbQuit
+bdb.BdbQuit

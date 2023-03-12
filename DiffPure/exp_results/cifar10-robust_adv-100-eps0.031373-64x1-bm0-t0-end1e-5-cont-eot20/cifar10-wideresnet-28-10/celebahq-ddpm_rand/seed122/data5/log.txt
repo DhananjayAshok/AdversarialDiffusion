@@ -1,0 +1,15 @@
+ngpus: 0, adv_batch_size: 0
+starting the model and loader...
+using cifar10 wideresnet-28-10...
+diffusion_type: celebahq-ddpm
+Loading model
+Traceback (most recent call last):
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 326, in <module>
+    robustness_eval(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 228, in robustness_eval
+    model = SDE_Adv_Model(args, config)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/eval_sde_adv.py", line 55, in __init__
+    self.runner = Diffusion(args, config, device=config.device)
+  File "/Users/hariharan/hari_works/adv_diffusion/DiffPure/runners/diffpure_ddpm.py", line 70, in __init__
+    raise ValueError
+ValueError
