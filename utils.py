@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader
-
+import argparse
 
 def safe_mkdir(path, force_clean=False):
     if os.path.exists(path) and force_clean:
@@ -287,8 +287,8 @@ def measure_attack_success(mixture_dset, attack, model=None):
     return np.array(metric).mean()
 
 
-def measure_attack_model_success(mixture_dset, attack_model, model=None):
-    dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
+def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=None):
+    # dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
     metric = []
     for index, data in dataloader:
         X, y = data
@@ -324,3 +324,21 @@ def get_common(target_model_archs, attacks, dataset_classes, train=True):
     attack_set = AttackSet(attacks)
     mixture_dset = DatasetAndModels(dataset_classes=dataset_classes, model_list=model_list, train=train)
     return attack_set, mixture_dset
+
+
+# Define a function to recursively convert a dictionary to a namespace object
+def dict_to_namespace(d):
+    namespace = argparse.Namespace()
+    for k, v in d.items():
+        if isinstance(v, dict):
+            setattr(namespace, k, dict_to_namespace(v))
+        else:
+            setattr(namespace, k, v)
+    return namespace
+
+class IdentityModel(torch.nn.Module):
+    def __init__(self):
+        super(IdentityModel, self).__init__()
+
+    def forward(self, x):
+        return x

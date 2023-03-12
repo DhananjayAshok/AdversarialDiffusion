@@ -8,6 +8,7 @@ from tqdm import tqdm
 from datasets import get_torchvision_dataset
 from utils import Parameters,safe_mkdir
 
+device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
 def get_model(model, dset_class, save_suffix, n_classes=10, input_channels=1):
     modify_network(model, n_classes, input_channels)
@@ -15,10 +16,9 @@ def get_model(model, dset_class, save_suffix, n_classes=10, input_channels=1):
         save_suffix = f"_{save_suffix}"
     model_path = os.path.join(Parameters.model_path, model.__class__.__name__+save_suffix,
                               dset_class.__name__, "final_chkpt.pt")
-    state_dict = torch.load(model_path)
+    state_dict = torch.load(model_path, map_location= device)
     model.load_state_dict(state_dict)
     return model
-
 
 def modify_network(model, n_classes, input_channels):
     model_type = model.__class__.__name__
