@@ -160,6 +160,11 @@ def get_attack_success_measures(model, inps, advs, true_labels):
     conditional_robust_accuracy = 0
     robustness = 0
     n_correct = 0
+
+    inps = inps.to(device)
+    advs = advs.to(device)
+    model = model.to(device)
+
     inp_preds = model(inps).argmax(-1)
     adv_preds = model(advs).argmax(-1)
     n_points = len(true_labels)
