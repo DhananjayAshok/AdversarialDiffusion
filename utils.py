@@ -6,9 +6,6 @@ import torch
 import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader
 import argparse
-from attacks import AttackSet
-from datasets import DatasetAndModels
-from models import get_model
 
 def safe_mkdir(path, force_clean=False):
     if os.path.exists(path) and force_clean:
@@ -312,6 +309,9 @@ class Parameters:
     model_path = "models"
     # device = "cpu"
 
+from attacks import AttackSet
+from datasets import DatasetAndModels
+from models import get_model
 
 def get_common(target_model_archs, attacks_s, dataset_classes, train=True):
 
