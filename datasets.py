@@ -41,7 +41,7 @@ def get_torchvision_dataset(dataset_class, train=False):
     if dataset_class == ds.MNIST:
         transform = transforms.Compose(
             [
-                transforms.Resize(size=(28, 28)),
+                transforms.Resize(size=(64, 64)),
                 transforms.ToTensor(),
                 #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
@@ -52,7 +52,7 @@ def get_torchvision_dataset(dataset_class, train=False):
     if dataset_class == ds.FashionMNIST:
         transform = transforms.Compose(
             [
-                transforms.Resize(size=(28, 28)),
+                transforms.Resize(size=(64, 64)),
                 transforms.ToTensor(),
                 #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
@@ -61,7 +61,7 @@ def get_torchvision_dataset(dataset_class, train=False):
     if dataset_class == ds.KMNIST:
         transform = transforms.Compose(
             [
-                transforms.Resize(size=(28, 28)),
+                transforms.Resize(size=(64, 64)),
                 transforms.ToTensor(),
                 #transforms.Normalize(mean=(0.127,), std=(0.2959,))
             ]
