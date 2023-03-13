@@ -6,6 +6,9 @@ import torch
 import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader
 import argparse
+from attacks import AttackSet
+from datasets import DatasetAndModels
+from models import get_model
 
 def safe_mkdir(path, force_clean=False):
     if os.path.exists(path) and force_clean:
@@ -303,16 +306,15 @@ def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=N
     return np.array(metric).mean()
 
 
+
 class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_path = "models"
     # device = "cpu"
 
 
-def get_common(target_model_archs, attacks, dataset_classes, train=True):
-    from attacks import AttackSet
-    from datasets import DatasetAndModels
-    from models import get_model
+def get_common(target_model_archs, attacks_s, dataset_classes, train=True):
+
     model_list = []
     for dset_class in dataset_classes:
         model_sublist = []
@@ -321,7 +323,7 @@ def get_common(target_model_archs, attacks, dataset_classes, train=True):
             m = get_model(model_inst, dset_class, save_suffix)
             model_sublist.append(m)
         model_list.append(model_sublist)
-    attack_set = AttackSet(attacks)
+    attack_set = AttackSet(attacks_s)
     mixture_dset = DatasetAndModels(dataset_classes=dataset_classes, model_list=model_list, train=train)
     return attack_set, mixture_dset
 

@@ -13,6 +13,7 @@ class ImageAttack:
 
     def __call__(
         self, model, input_batch, true_labels, target_labels=None, preprocessing=None):
+        print(self.attack_class)
         attack = self.attack_class(model, **self.params)
         attack.set_normalization_used(mean=list(preprocessing['mean']), std=list(preprocessing['std']))
         return attack(input_batch, true_labels)
@@ -24,7 +25,11 @@ class AttackSet:
         self.params = params
 
     def __call__(self, model, input_batch, true_labels, preprocessing=None):
-        attack = ImageAttack(choice(self.attacks), self.params)
+        cand = choice(self.attacks)
+        if isinstance(cand, ImageAttack):
+            attack = cand
+        else:
+            attack = ImageAttack(cand, self.params)
         return attack(model, input_batch, true_labels, preprocessing=preprocessing)
 
 
