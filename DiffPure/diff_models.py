@@ -72,6 +72,8 @@ class DiffPure(torch.nn.Module):
 
         out = (x_re + 1) * 0.5
 
+        out = out.mean(dim=1, keepdims=True)
+
         return out
 
 # Define a function to recursively convert a dictionary to a namespace object
