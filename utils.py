@@ -300,7 +300,7 @@ def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=N
                 model_list = mixture_dset.models[index]
             for s_model in model_list:
                 advs = attack_model(X)
-                print(advs.shape, X.shape, y.shape)
+                # print(advs.shape, X.shape, y.shape)
                 metrics = get_attack_success_measures(s_model, X, advs, y)
                 metric.append(metrics[0])
     return np.array(metric).mean()
