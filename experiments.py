@@ -62,10 +62,10 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     val_dataset = Subset(whole_train_dataset, val_indices)
 
     train_loader = DataLoader(train_dataset,
-                              batch_size=32,
+                              batch_size=4,
                               shuffle=True)
     val_loader = DataLoader(val_dataset,
-                            batch_size=32,
+                            batch_size=4,
                             shuffle=True)
 
     attack_model = attack_model.to(device)
@@ -90,13 +90,14 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
         # iterate over batch.
         for i, (idxs, batch_data) in tqdm(enumerate(train_loader), total = n_total_step):
             attacked_imgs = []
-            for idx in range(len(idxs)):
-                clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
+            for j, idx in enumerate(idxs):
+                clean_img, true_label = batch_data[0][j:j + 1], batch_data[1][j:j + 1]
+                # pdb.set_trace()
                 s_model = choice(mixture_dset.models[idx])
                 attacked_img = attack_set(s_model, clean_img, true_label,
                                           preprocessing=mixture_dset.preprocessings[idx])
                 attacked_imgs.append(attacked_img)
-            attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
+            attacked_imgs = torch.concat(attacked_imgs, dim=0).to(device)
             clean_imgs = batch_data[0].to(device)
             attacked_imgs_hat = attack_model(clean_imgs)
             # train
@@ -104,7 +105,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             loss_value.backward()
             optimizer.step()
             # success of this attack.
-            attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
+            attack_model_success = measure_attack_model_success(train_loader, mixture_dset, attack_model)
             if (i + 1) % 250 == 0:
                 print(f'epoch {epoch + 1}/{num_epochs}, step: {i + 1}/{n_total_step}: loss = {loss_value:.5f}, '
                       f'attack success = {100 * attack_model_success:.2f}')
@@ -142,7 +143,7 @@ def _val(model, test_loader, mixture_dset, attack_set, criterion):
                 clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
                 s_model = choice(mixture_dset.models[idx])
                 attacked_img = attack_set(s_model, clean_img, true_label,
-                                          preprocessing=mixture_dset.preprocessings[idx])
+                                                 preprocessing=mixture_dset.preprocessings[idx])
                 attacked_imgs.append(attacked_img)
             attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
             clean_imgs = batch_data[0].to(device)

@@ -1,4 +1,5 @@
 import os
+import pdb
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -290,16 +291,18 @@ def measure_attack_success(mixture_dset, attack, model=None):
 def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=None):
     # dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
     metric = []
-    for index, data in dataloader:
-        X, y = data
-        if model is not None:
-            model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
-        else:
-            model_list = mixture_dset.models[index]
-        for s_model in model_list:
-            advs = attack_model(X)
-            metrics = get_attack_success_measures(s_model, X, advs, y)
-            metric.append(metrics[0])
+    for indices, data in dataloader:
+        for j, index in enumerate(indices):
+            X, y = data[0][j:j + 1], data[1][j:j + 1]
+            if model is not None:
+                model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
+            else:
+                model_list = mixture_dset.models[index]
+            for s_model in model_list:
+                advs = attack_model(X)
+                print(advs.shape, X.shape, y.shape)
+                metrics = get_attack_success_measures(s_model, X, advs, y)
+                metric.append(metrics[0])
     return np.array(metric).mean()
 
 
@@ -341,8 +344,11 @@ def dict_to_namespace(d):
 class DummyModel(torch.nn.Module):
     def __init__(self):
         super(DummyModel, self).__init__()
-        self.conv = torch.nn.Conv2d(3, 3, (3, 3), stride=1, padding=2)
+        self.conv = torch.nn.Conv2d(3, 3, (3, 3), stride=1, padding=1)
 
     def forward(self, x):
+        batch, nc, h, w = x.shape
+        x = x.expand(batch, 3, h, w)
         x = self.conv(x)
+        x = x.mean(dim = 1, keepdims = True)
         return x
