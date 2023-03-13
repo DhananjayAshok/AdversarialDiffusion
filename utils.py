@@ -287,13 +287,18 @@ def measure_attack_success(mixture_dset, attack, model=None):
             metric.append(metrics[0])
     return np.array(metric).mean()
 
+class Parameters:
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model_path = "models"
+    # device = "cpu"
 
+device = Parameters.device
 def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=None):
     # dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
     metric = []
     for indices, data in dataloader:
         for j, index in enumerate(indices):
-            X, y = data[0][j:j + 1], data[1][j:j + 1]
+            X, y = data[0][j:j + 1].to(device), data[1][j:j + 1].to(device)
             if model is not None:
                 model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
             else:
@@ -305,12 +310,6 @@ def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=N
                 metric.append(metrics[0])
     return np.array(metric).mean()
 
-
-
-class Parameters:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_path = "models"
-    # device = "cpu"
 
 from attacks import AttackSet
 from datasets import DatasetAndModels
