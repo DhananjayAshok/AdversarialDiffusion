@@ -133,3 +133,4 @@ models/
 *.pt
 *.pth
 .DS_Store
+models.zip
