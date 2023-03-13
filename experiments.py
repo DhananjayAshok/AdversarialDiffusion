@@ -32,10 +32,11 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
 
     # load diffpure model.
     attack_model = DiffPure(args, config)
-    attack_model = DummyModel()
+    attack_model = attack_model.to(device)
+    # attack_model = DummyModel()
 
-    # from torchsummary import summary
-    # print(summary(attack_model, input_size=(3, 64, 64)))
+    from torchsummary import summary
+    print(summary(attack_model, input_size=(3, 64, 64)))
 
     # sanity checks.
     # image = torch.from_numpy(np.random.randint(0, 255, size=(5, 3, 64, 64)).astype(np.uint8))
