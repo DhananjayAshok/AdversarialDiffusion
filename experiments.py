@@ -30,6 +30,8 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     args = config_namespace.args
     config = config_namespace.config
 
+    device = Parameters.device
+
     # load diffpure model.
     attack_model = DiffPure(args, config)
     attack_model = attack_model.to(device)
@@ -52,7 +54,6 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     # from torchsummary import summary
     # summary(model=diffpure, input_size=(3, 64, 64))
 
-    device = Parameters.device
     whole_train_dataset = mixture_dset
     train_size_int = int(len(whole_train_dataset) * train_size)
     rand_indices = np.arange(len(whole_train_dataset))
