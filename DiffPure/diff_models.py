@@ -51,6 +51,8 @@ class DiffPure(torch.nn.Module):
 
     def forward(self, x):
         counter = self.counter.item()
+        batch, nc, h, w = x.shape
+        x = x.expand(batch, 3, h, w)
         if counter % 5 == 0:
             print(f'diffusion times: {counter}')
 
