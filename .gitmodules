@@ -1,0 +1,3 @@
+[submodule "Diffusion-Models-pytorch"]
+	path = Diffusion-Models-pytorch
+	url = https://github.com/dome272/Diffusion-Models-pytorch.git
