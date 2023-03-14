@@ -47,9 +47,6 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     # also the shape should be (1, 64, 64) but i couldnt check that.
     # if not we need to add a conv layer to make it that way.
 
-    image = torch.randn(size=(2, 3, 64, 64))
-    out = attack_model(image)
-    print(out.shape)
 
     # from torchsummary import summary
     # summary(model=diffpure, input_size=(3, 64, 64))
@@ -101,6 +98,9 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
                 attacked_imgs.append(attacked_img)
             attacked_imgs = torch.concat(attacked_imgs, dim=0).to(device)
             clean_imgs = batch_data[0].to(device)
+            print(clean_imgs.device)
+            print(attack_model.runner.model.time_embed[0])
+            print(attack_model.runner.model.time_embed[0].weight.device)
             attacked_imgs_hat = attack_model(clean_imgs)
             # train
             loss_value = criterion(attacked_imgs_hat, attacked_imgs)
