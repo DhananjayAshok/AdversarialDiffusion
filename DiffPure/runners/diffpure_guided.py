@@ -33,7 +33,7 @@ class GuidedDiffusion(torch.nn.Module):
         print(f'model_config: {model_config}')
         model, diffusion = create_model_and_diffusion(**model_config)
         # model.load_state_dict(torch.load(f'{model_dir}/256x256_diffusion_uncond.pt', map_location='cpu'))
-        model.requires_grad_(False).eval().to(self.device)
+        # model.requires_grad_(False).eval().to(self.device)
 
         if model_config['use_fp16']:
             model.convert_to_fp16()

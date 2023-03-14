@@ -32,7 +32,7 @@ config:
     num_channels: 3
     random_flip: true
     uniform_dequantization: false
-  device: cpu
+  device: cuda
   image_size: 64
   model:
     attention_type: ddpm
