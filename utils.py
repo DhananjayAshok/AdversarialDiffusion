@@ -356,3 +356,6 @@ class DummyModel(torch.nn.Module):
         x = self.conv(x)
         x = x.mean(dim = 1, keepdims = True)
         return x
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -1,15 +1,14 @@
-import pdb
-
 from attacks import ImageAttack, ATTACKS
 from torchvision.datasets import MNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common, dict_to_namespace
 from DiffPure import DiffPure
+from DDPM import DDPM
 import yaml
 import torch
 import numpy as np
 from torch.utils.data import Subset, DataLoader
 from numpy.random import choice
-from utils import Parameters,safe_mkdir, DummyModel
+from utils import Parameters,safe_mkdir, DummyModel, count_parameters
 import os
 from tqdm import tqdm
 from pathlib import Path
@@ -20,21 +19,24 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
           early_stopping=1,
           save_name=""):
 
-    config_file = f'DiffPure/configs/{diff_model_name}_config.yml'
+    if diff_model_name in ['guided_diffusion']:
+        config_file = f'DiffPure/configs/{diff_model_name}_config.yml'
 
-    with open(config_file, 'r') as stream:
-        config_dict = yaml.safe_load(stream)
+        with open(config_file, 'r') as stream:
+            config_dict = yaml.safe_load(stream)
 
-    # Convert the dictionary to a namespace object
-    config_namespace = dict_to_namespace(config_dict)
-    args = config_namespace.args
-    config = config_namespace.config
+        # Convert the dictionary to a namespace object
+        config_namespace = dict_to_namespace(config_dict)
+        args = config_namespace.args
+        config = config_namespace.config
 
-    device = Parameters.device
+        # load diffpure model.
+        attack_model = DiffPure(args, config)
 
-    # load diffpure model.
-    attack_model = DiffPure(args, config)
-    attack_model = attack_model.to(device)
+    elif diff_model_name == 'ddpm':
+        attack_model = DDPM()
+        print(f'Loaded model {diff_model_name} | num params: {count_parameters(attack_model)//10e6}M')
+
     # attack_model = DummyModel()
 
     # from torchsummary import summary
@@ -46,10 +48,6 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     # print(out.shape) # this should work for you. ensure that, if not reach out.
     # also the shape should be (1, 64, 64) but i couldnt check that.
     # if not we need to add a conv layer to make it that way.
-
-
-    # from torchsummary import summary
-    # summary(model=diffpure, input_size=(3, 64, 64))
 
     whole_train_dataset = mixture_dset
     train_size_int = int(len(whole_train_dataset) * train_size)
@@ -67,7 +65,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
                             batch_size=4,
                             shuffle=True)
 
-    attack_model = attack_model.to(device)
+    attack_model = attack_model.to(Parameters.device)
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(attack_model.parameters(), lr=lr, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.75)
@@ -88,24 +86,40 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     for epoch in range(num_epochs):
         # iterate over batch.
         for i, (idxs, batch_data) in tqdm(enumerate(train_loader), total = n_total_step):
-            attacked_imgs = []
-            for j, idx in enumerate(idxs):
-                clean_img, true_label = batch_data[0][j:j + 1], batch_data[1][j:j + 1]
-                # pdb.set_trace()
-                s_model = choice(mixture_dset.models[idx])
-                attacked_img = attack_set(s_model, clean_img, true_label,
-                                          preprocessing=mixture_dset.preprocessings[idx])
-                attacked_imgs.append(attacked_img)
-            attacked_imgs = torch.concat(attacked_imgs, dim=0).to(device)
-            clean_imgs = batch_data[0].to(device)
-            print(clean_imgs.device)
-            print(attack_model.runner.model.time_embed[0])
-            print(attack_model.runner.model.time_embed[0].weight.device)
+            rand_index = choice(range(len(mixture_dset.models)))
+            # pdb.set_trace()
+            s_model = mixture_dset.models[0][rand_index]
+
+            # for now we batch all the examples from
+            clean_imgs, true_labels = batch_data
+            attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
+                                      preprocessing=mixture_dset.preprocessings[rand_index])
+
+            clean_imgs = clean_imgs.to(Parameters.device)
+            attacked_imgs = attacked_imgs.to(Parameters.device)
+
+            # attacked_imgs = []
+            # for j, idx in enumerate(idxs):
+            #     clean_img, true_label = batch_data[0][j:j + 1], batch_data[1][j:j + 1]
+            #     # pdb.set_trace()
+            #     s_model = choice(mixture_dset.models[idx])
+            #     attacked_img = attack_set(s_model, clean_img, true_label,
+            #                               preprocessing=mixture_dset.preprocessings[idx])
+            #     attacked_imgs.append(attacked_img)
+            # attacked_imgs = torch.concat(attacked_imgs, dim=0).to(device)
+            # clean_imgs = batch_data[0].to(device)
+
+            # print(clean_imgs.device)
+            # print(attack_model.runner.model.time_embed[0])
+            # print(attack_model.runner.model.time_embed[0].weight.device)
+
             attacked_imgs_hat = attack_model(clean_imgs)
             # train
             loss_value = criterion(attacked_imgs_hat, attacked_imgs)
             loss_value.backward()
             optimizer.step()
+
+            pdb.set_trace()
             # success of this attack.
             attack_model_success = measure_attack_model_success(train_loader, mixture_dset, attack_model)
             if (i + 1) % 250 == 0:
@@ -135,20 +149,30 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     # return test_loss
 
 def _val(model, test_loader, mixture_dset, attack_set, criterion):
-    device = Parameters.device
     with torch.no_grad():
         val_losses = []
         accs = []
         for idxs, batch_data in test_loader:
-            attacked_imgs = []
-            for idx in range(len(idxs)):
-                clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
-                s_model = choice(mixture_dset.models[idx])
-                attacked_img = attack_set(s_model, clean_img, true_label,
-                                                 preprocessing=mixture_dset.preprocessings[idx])
-                attacked_imgs.append(attacked_img)
-            attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
-            clean_imgs = batch_data[0].to(device)
+            rand_index = choice(range(len(mixture_dset.models)))
+
+            s_model = mixture_dset.models[0][rand_index]
+
+            # for now we batch all the examples from
+            clean_imgs, true_labels = batch_data
+            attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
+                                       preprocessing=mixture_dset.preprocessings[rand_index])
+            attacked_imgs = attacked_imgs.to(Parameters.device)
+
+            # attacked_imgs = []
+            # for idx in range(len(idxs)):
+            #     clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
+            #     s_model = choice(mixture_dset.models[idx])
+            #     attacked_img = attack_set(s_model, clean_img, true_label,
+            #                                      preprocessing=mixture_dset.preprocessings[idx])
+            #     attacked_imgs.append(attacked_img)
+            # attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
+
+            clean_imgs = batch_data[0].to(Parameters.device)
             attacked_imgs_predicted = model(clean_imgs)
             loss_value = criterion(attacked_imgs_predicted, attacked_imgs)
             acc = measure_attack_model_success(test_loader, mixture_dset, model)
@@ -259,7 +283,7 @@ def run_experiment1():
     dataset_class = MNIST
     experiment_name = "first"
     train = True
-    a, b = experiment_1('guided_diffusion', (target_model_arch, '50'), attack, dataset_class,
+    a, b = experiment_1('ddpm', (target_model_arch, '50'), attack, dataset_class,
                         experiment_name, train=train)
     print(a)
     print(b)
