@@ -26,6 +26,6 @@ class DDPM(torch.nn.Module):
         return out
 
 if __name__ == '__main__':
-    training_images = torch.rand(4, 3, 128, 128)
+    training_images = torch.rand(4, 3, 64, 64)
     model = DDPM()
     out = model(training_images)
