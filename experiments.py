@@ -14,9 +14,11 @@ from tqdm import tqdm
 from pathlib import Path
 from torchvision.models import resnet50, resnet18, resnet34
 import matplotlib.pyplot as plt
-from gan import train as get_gan
+from gan import get_identity
+import pandas as pd
 
-# TODO: add code the attack model.
+
+
 def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch_size=32, lr=0.001, train_size=0.9,
           early_stopping=1,
           save_name=""):
@@ -121,7 +123,6 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             loss_value.backward()
             optimizer.step()
 
-            pdb.set_trace()
             # success of this attack.
             attack_model_success = measure_attack_model_success(train_loader, mixture_dset, attack_model)
             if (i + 1) % 250 == 0:
@@ -149,6 +150,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     torch.save(attack_model.state_dict(), final_path)
     # test_loss = _val(attack_model, test_loader, criterion)
     # return test_loss
+
 
 def _val(model, test_loader, mixture_dset, attack_set, criterion):
     with torch.no_grad():
@@ -242,15 +244,15 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
-        attack_model = attack_model = get_diffusion(diff_model_name, mixture_dset,
-                                                    attack_set, save_name=experiment_name)
+        attack_model = get_identity(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
-    attack_success = measure_attack_success(model, mixture_dset, attack)
-    attack_model_success = measure_attack_model_success(mixture_dset, attack_model, model=model)
-    return attack_success, attack_model_success
+    clean_accuracy, robust_accuracy = measure_attack_success(model, mixture_dset, attack_set)
+    attack_model_success = measure_attack_model_success(mixture_dset, attack_model, target_model=model)
+    print(attack_model_success)
+    return clean_accuracy, robust_accuracy, attack_model_success[1]
 
 
 def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
@@ -276,7 +278,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
     attack_results = []
     for attack in attacks: # what is the efficacy on every attack.
-        attack_success = measure_attack_success(mixture_dset, attack, model=model)
+        attack_success = measure_attack_success(mixture_dset, attack, target_model=model)
         attack_results.append(attack_success)
     return attack_results, attack_model_success
 
@@ -296,19 +298,6 @@ def experiment_3(train_model_archs, attack, train_dataset_classes, test_model_ar
     attack_results = measure_attack_success(mixture_dset, attack)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
     return attack_results, attack_model_success
-
-
-def run_experiment1():
-    target_model_arch = resnet50
-    attack = ImageAttack(ATTACKS['pgd_l2'])
-    dataset_class = MNIST
-    experiment_name = "first"
-    train = True
-    a, b = experiment_1('ddpm', (target_model_arch, '50'), attack, dataset_class,
-                        experiment_name, train=train)
-    print(a)
-    print(b)
-    return a, b
 
 
 def run_experiment0():
@@ -378,7 +367,24 @@ def run_transfer_experiment():
                 plt.clf()
 
 
+def run_experiment1():
+    target_model_archs = [(resnet18, "18"), (resnet34, "34"), (resnet50, "50")]
+    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
+    dataset_classes = [MNIST, KMNIST, FashionMNIST]
+    columns = ["dataset", "attack", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    for dataset_class in dataset_classes:
+        for attack in attacks:
+            for target_model_arch in target_model_archs:
+                name = f"ResNet{target_model_arch[1]}"
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("lol", target_model_arch, attack, dataset_class)
+                data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
+                             model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_1.csv", index=False)
+    return df
+
+
 if __name__ == "__main__":
-    target_model_arch, attack, dataset_class = (resnet18, "18"), ATTACKS['fgsm'], MNIST
-    experiment_1(None, target_model_arch, attack, dataset_class)
+    run_experiment1()
 
