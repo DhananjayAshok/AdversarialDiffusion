@@ -8,6 +8,7 @@ import torchvision.transforms.functional as F
 from torch.utils.data import DataLoader
 import argparse
 
+
 def safe_mkdir(path, force_clean=False):
     if os.path.exists(path) and force_clean:
         os.rmdir(path)
@@ -143,6 +144,13 @@ def get_robustness(pred, adv_pred):
     return np.mean(pred == adv_pred)
 
 
+def normalize_to_dict(normalize):
+    preprocessing = dict(
+        mean=list(normalize.mean), std=list(normalize.std), axis=-(len(normalize.mean))
+    )
+    return preprocessing
+
+
 def get_attack_success_measures(model, inps, advs, true_labels):
     """
 
@@ -204,13 +212,6 @@ def repeat_batch_images(x, num_repeat):
     return x
 
 
-def normalize_to_dict(normalize):
-    preprocessing = dict(
-        mean=list(normalize.mean), std=list(normalize.std), axis=-(len(normalize.mean))
-    )
-    return preprocessing
-
-
 def get_dataset_class(dataset_name="mnist"):
     if dataset_name == "mnist":
         from torchvision.datasets import MNIST
@@ -251,77 +252,82 @@ def measure_attack_stats(X, advs, disp=False):
     return l1_norm, l2_norm, linf_norm
 
 
-def analyze_density_result_array(arr, preprint="", indent="", show_full=False):
-    """
-
-    :param arr: (bs, n_samples) where arr[b, i] = 1 iff iff that robustnessmmetric was 1 on the ith augmentation of X[b]
-    :param preprint:
-    :param indent:
-    :param show_full:
-    :return:
-    """
-    print(f"{'X'*20}")
-    print(f"{indent}{preprint}")
-    print(f"{'-'*20}")
-    m = arr.mean(axis=1)
-    ma = arr.max(axis=1)
-    mi = arr.min(axis=1)
-    print(f"{indent}Average Across Batches:")
-    print(f"{indent}Mean: {m.mean()}, Max: {ma.mean()}, Min: {mi.mean()}")
-    print(f"{indent}Maximum Across Batches:")
-    print(f"{indent}Mean: {m.max()}, Max: {ma.max()}, Min: {mi.max()}")
-    print(f"{indent}Minimum Across Batches:")
-    print(f"{indent}Mean: {m.min()}, Max: {ma.min()}, Min: {mi.min()}")
-    if show_full:
-        print(arr)
-    return m, ma, mi
-
-
-def measure_attack_success(mixture_dset, attack, model=None):
-    dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
-    metric = []
+def measure_attack_success(target_model, mixture_dset, attack_set, no_limit=250, batch_size=32):
+    dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
+    no = 0
+    clean_accuracy = []
+    robust_accuracy = []
     for index, data in dataloader:
+        if no_limit is not None and no > no_limit:
+            break
         X, y = data
-        if model is not None:
-            model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
+        if target_model is not None:
+            model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
         else:
             model_list = mixture_dset.models[index]
         for s_model in model_list:
-            advs = attack(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessing)
+            advs = attack_set(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessings[index[0]])
             metrics = get_attack_success_measures(s_model, X, advs, y)
-            metric.append(metrics[0])
-    return np.array(metric).mean()
+            clean_accuracy.append(metrics[0])
+            robust_accuracy.append(metrics[1])
+        no += batch_size
+    return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
+
+
+def measure_transfer_attack_success(model1, model2, mixture_dset, attack, no_limit=250, batch_size=32):
+    dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
+    no = 0
+    clean_accuracy = []
+    robust_accuracy = []
+    for index, data in dataloader:
+        if no_limit is not None and no > no_limit:
+            break
+        X, y = data
+        model_list = [model1]
+        for s_model in model_list:
+            advs = attack(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessings[index[0]])
+            metrics = get_attack_success_measures(model2, X, advs, y)
+            clean_accuracy.append(metrics[0])
+            robust_accuracy.append(metrics[1])
+        no += batch_size
+    return np.array(clean_accuracy), np.array(robust_accuracy)
+
 
 class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_path = "models"
     # device = "cpu"
 
+
 device = Parameters.device
-def measure_attack_model_success(dataloader, mixture_dset, attack_model, model=None):
-    # dataloader = DataLoader(mixture_dset, batch_size=64, shuffle=True)
-    metric = []
-    for indices, data in dataloader:
-        for j, index in enumerate(indices):
-            X, y = data[0][j:j + 1].to(device), data[1][j:j + 1].to(device)
-            if model is not None:
-                model_list = [model] # You are guaranteering that the model can run on all datasets sensibly
-            else:
-                model_list = mixture_dset.models[index]
-            for s_model in model_list:
-                advs = attack_model(X)
-                # print(advs.shape, X.shape, y.shape)
-                metrics = get_attack_success_measures(s_model, X, advs, y)
-                metric.append(metrics[0])
-    return np.array(metric).mean()
 
 
-from attacks import AttackSet
-from datasets import DatasetAndModels
-from models import get_model
+def measure_attack_model_success(mixture_dset, attack_model, target_model=None, no_limit=250, batch_size=32):
+    dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
+    no = 0
+    clean_accuracy = []
+    robust_accuracy = []
+    for index, data in dataloader:
+        if no_limit is not None and no > no_limit:
+            break
+        X, y = data
+        if target_model is not None:
+            model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
+        else:
+            model_list = mixture_dset.models[index]
+        for s_model in model_list:
+            advs = attack_model(X)
+            metrics = get_attack_success_measures(s_model, X, advs, y)
+            clean_accuracy.append(metrics[0])
+            robust_accuracy.append(metrics[1])
+        no += batch_size
+    return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
+
 
 def get_common(target_model_archs, attacks_s, dataset_classes, train=True):
-
+    from attacks import AttackSet
+    from datasets import DatasetAndModels
+    from models import get_model
     model_list = []
     for dset_class in dataset_classes:
         model_sublist = []
@@ -345,6 +351,7 @@ def dict_to_namespace(d):
             setattr(namespace, k, v)
     return namespace
 
+
 class DummyModel(torch.nn.Module):
     def __init__(self):
         super(DummyModel, self).__init__()
@@ -356,6 +363,7 @@ class DummyModel(torch.nn.Module):
         x = self.conv(x)
         x = x.mean(dim = 1, keepdims = True)
         return x
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
