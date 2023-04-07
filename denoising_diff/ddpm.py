@@ -1,5 +1,5 @@
 import torch
-from denoising_diffusion_pytorch import Unet, GaussianDiffusion
+from .denoising_diffusion_pytorch import Unet, GaussianDiffusion
 
 class DDPM(torch.nn.Module):
     def __init__(self):
@@ -21,7 +21,7 @@ class DDPM(torch.nn.Module):
     def forward(self, x):
         batch, nc, h, w = x.shape
         x = x.expand(batch, 3, h, w)
-        _, out = self.diffusion(x)
+        out, loss = self.diffusion(x)
         out = out.mean(dim=1, keepdims=True)
         return out
 
@@ -29,3 +29,4 @@ if __name__ == '__main__':
     training_images = torch.rand(4, 3, 64, 64)
     model = DDPM()
     out = model(training_images)
+    print(out.shape)
