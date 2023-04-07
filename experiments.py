@@ -1,8 +1,6 @@
-import pdb
 from attacks import ImageAttack, ATTACKS
 from torchvision.datasets import MNIST, FashionMNIST, KMNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common, dict_to_namespace, measure_transfer_attack_success
-import yaml
 import torch
 import numpy as np
 from torch.utils.data import Subset, DataLoader
