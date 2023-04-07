@@ -16,6 +16,7 @@ from pathlib import Path
 from torchvision.models import resnet50, resnet18, resnet34
 import matplotlib.pyplot as plt
 from gan import train as get_gan
+from diffusion import get_diffusion, load_diffusion
 
 def experiment_0(target_model_arch, attack, dataset_class):
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)

@@ -1,6 +1,6 @@
 from utils import measure_attack_success, measure_attack_model_success, get_common, dict_to_namespace, measure_transfer_attack_success
 from DiffPure import DiffPure
-from DDPM import DDPM
+from denoising_diff import DDPM
 import yaml
 import torch
 import numpy as np
@@ -193,15 +193,20 @@ def load_diffusion(diff_model_name, save_name):
 
     state_dict = torch.load(final_path)
 
-    config_file = f'DiffPure/{diff_model_name}_config.yml'
-    with open(config_file, 'r') as stream:
-        config_dict = yaml.safe_load(stream)
-    config_namespace = dict_to_namespace(config_dict)
-    args = config_namespace.args
-    config = config_namespace.config
+    if diff_model_name in ['guided_diffusion']:
+        config_file = f'DiffPure/{diff_model_name}_config.yml'
+        with open(config_file, 'r') as stream:
+            config_dict = yaml.safe_load(stream)
+        config_namespace = dict_to_namespace(config_dict)
+        args = config_namespace.args
+        config = config_namespace.config
 
-    # create model instance.
-    attack_model = DiffPure(args, config)
+        # create model instance.
+        attack_model = DiffPure(args, config)
+
+    elif diff_model_name == 'ddpm':
+        attack_model = DDPM()
+        print(f'Loaded model {diff_model_name} | num params: {count_parameters(attack_model)//10e6}M')
 
     # load in the weights
     attack_model.load_state_dict(state_dict)
