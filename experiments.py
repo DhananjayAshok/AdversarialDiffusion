@@ -1,3 +1,4 @@
+import pdb
 from attacks import ImageAttack, ATTACKS
 from torchvision.datasets import MNIST
 from utils import measure_attack_success, measure_attack_model_success, get_common, dict_to_namespace
@@ -119,7 +120,6 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             loss_value.backward()
             optimizer.step()
 
-            pdb.set_trace()
             # success of this attack.
             attack_model_success = measure_attack_model_success(train_loader, mixture_dset, attack_model)
             if (i + 1) % 250 == 0:
