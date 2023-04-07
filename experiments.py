@@ -45,7 +45,7 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
-        attack_model = get_identity(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
@@ -178,7 +178,7 @@ def run_experiment1():
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("lol", target_model_arch, attack, dataset_class)
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("ddpm", target_model_arch, attack, dataset_class)
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)
