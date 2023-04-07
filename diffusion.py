@@ -13,7 +13,6 @@ from pathlib import Path
 from torchvision.models import resnet50, resnet18, resnet34
 import matplotlib.pyplot as plt
 
-# TODO: add code the attack model.
 def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch_size=32, lr=0.001, train_size=0.9,
           early_stopping=1,
           save_name=""):
@@ -119,10 +118,12 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             optimizer.step()
 
             # success of this attack.
-            attack_model_success = measure_attack_model_success(train_loader, mixture_dset, attack_model)
+            clean_accuracy, robust_accuracy = measure_attack_model_success(mixture_dset, attack_model)
             if (i + 1) % 250 == 0:
                 print(f'epoch {epoch + 1}/{num_epochs}, step: {i + 1}/{n_total_step}: loss = {loss_value:.5f}, '
-                      f'attack success = {100 * attack_model_success:.2f}')
+                      f'clean accuracy = {100 * clean_accuracy:.2f}'
+                      f'robust accuracy = {100 * robust_accuracy:.2f}'
+                      )
             if (i + 1) % 500 == 0:
                 torch.save(attack_model.state_dict(), os.path.join(checkpoint_path, f"chkpt_{epoch}.pth"))
             del clean_imgs
@@ -149,7 +150,8 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
 def _val(model, test_loader, mixture_dset, attack_set, criterion):
     with torch.no_grad():
         val_losses = []
-        accs = []
+        clean_accs = []
+        robust_accs = []
         for idxs, batch_data in test_loader:
             rand_index = choice(range(len(mixture_dset.models)))
 
@@ -173,10 +175,11 @@ def _val(model, test_loader, mixture_dset, attack_set, criterion):
             clean_imgs = batch_data[0].to(Parameters.device)
             attacked_imgs_predicted = model(clean_imgs)
             loss_value = criterion(attacked_imgs_predicted, attacked_imgs)
-            acc = measure_attack_model_success(test_loader, mixture_dset, model)
-            accs.append(acc)
+            clean_acc, robust_acc = measure_attack_model_success(test_loader, mixture_dset, model)
+            clean_accs.append(clean_acc)
+            robust_accs.append(robust_acc)
             val_losses.append(loss_value)
-        print(f'Overall accuracy: {(sum(accs) / len(accs)) * 100} % Loss: {loss_value}')
+        print(f'Clean accuracy: {(sum(clean_accs) / len(clean_accs)) * 100} | Robust accuracy: {(sum(robust_accs) / len(robust_accs)) * 100} | % Loss: {loss_value}')
         return sum(val_losses) / len(val_losses)
 
 
