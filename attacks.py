@@ -1,7 +1,7 @@
-from torchattacks import PGD, PGDL2
+from torchattacks import PGD, PGDL2, FGSM, TIFGSM
 from numpy.random import choice
 
-ATTACKS = {"pgd": PGD, "pgd_l2": PGDL2}
+ATTACKS = {"pgd": PGD, "pgd_l2": PGDL2, "fgsm": FGSM, "tifgsm": TIFGSM}
 
 
 class ImageAttack:
