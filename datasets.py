@@ -147,7 +147,7 @@ class DatasetAndModels(torch.utils.data.Dataset):
         self.models = model_list
         assert len(self.models) == len(self.datasets)
         for element in model_list:
-            assert len(element) > 0
+            assert len(element) > 0, "Maybe you forgot to make model list a nested list"
         self.offsets = np.cumsum(self.lengths)
         self.length = np.sum(self.lengths)
 
@@ -167,3 +167,10 @@ class DatasetAndModels(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.length
+
+
+def get_sample_mixture_dset():
+    from models import get_model
+    from torchvision.models import resnet18
+    return DatasetAndModels(dataset_classes=[ds.MNIST], model_list=[[get_model(model=resnet18(),dset_class=ds.MNIST,
+                                                                              save_suffix="18")]])
