@@ -186,5 +186,100 @@ def run_experiment1():
     return df
 
 
+def run_experiment2():
+    target_model_archs = [(resnet18, "18"), (resnet34, "34"), (resnet50, "50")]
+    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
+    dataset_classes = [MNIST, KMNIST, FashionMNIST]
+    columns = ["dataset", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    for dataset_class in dataset_classes:
+        for target_model_arch in target_model_archs:
+            name = f"ResNet{target_model_arch[1]}"
+            clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("lol", target_model_arch, attacks,
+                                                                                  dataset_class)
+            data.append([dataset_class.__name__, name, clean_accuracy, robust_accuracy,
+                         model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_2.csv", index=False)
+    return df
+
+
+def run_experiment2():
+    target_model_archs = [(resnet18, "18"), (resnet34, "34"), (resnet50, "50")]
+    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
+    dataset_classes = [MNIST, KMNIST, FashionMNIST]
+    columns = ["dataset", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    for dataset_class in dataset_classes:
+        for target_model_arch in target_model_archs:
+            name = f"ResNet{target_model_arch[1]}"
+            clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("lol", target_model_arch, attacks,
+                                                                                  dataset_class)
+            data.append([dataset_class.__name__, name, clean_accuracy, robust_accuracy,
+                         model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_2.csv", index=False)
+    return df
+
+
+def run_experiment3():
+    # dataset mixture train and test
+    target_model_archs = [(resnet18, "18")]
+    train_dataset_classes = [MNIST, KMNIST]
+    test_dataset_classes = [FashionMNIST]
+    attacks = [ATTACKS['pgd_l2']]
+    columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=train_dataset_classes)
+    data.append(["Train", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=test_dataset_classes,
+                                                                          train=False)
+    data.append(["Test", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_3.csv", index=False)
+    return df
+
+
+def run_experiment4():
+    # model mixture train and test
+    target_model_archs = [(resnet18, "18"), (resnet34, "34")]
+    test_model_archs = [(resnet50, "50")]
+    train_dataset_classes = [MNIST]
+    attacks = [ATTACKS['pgd_l2']]
+    columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=train_dataset_classes)
+    data.append(["Train", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=test_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=train_dataset_classes,
+                                                                          train=False)
+    data.append(["Test", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_4.csv", index=False)
+    return df
+
+
+
 if __name__ == "__main__":
     run_experiment1()
