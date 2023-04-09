@@ -96,6 +96,13 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
             clean_imgs = clean_imgs.to(Parameters.device)
             attacked_imgs = attacked_imgs.to(Parameters.device)
 
+            for idx in set(idxs):
+                s_model = choice(mixture_dset.models[idx])
+                idx_mask = (idxs == idx)
+                X_slice = batch_data[0][idx_mask]
+                y_slice = batch_data[1][idx_mask]
+
+
             # attacked_imgs = []
             # for j, idx in enumerate(idxs):
             #     clean_img, true_label = batch_data[0][j:j + 1], batch_data[1][j:j + 1]
