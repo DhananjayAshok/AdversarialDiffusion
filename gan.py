@@ -8,19 +8,15 @@ from torch.utils.data import DataLoader, Dataset, Subset
 
 
 def conv_block(input_channels, output_channels):
-    c1 = nn.Conv2d(in_channels=input_channels, out_channels=input_channels, kernel_size=4, stride=1, padding=2)
-    r1 = nn.ReLU()
     c2 = nn.Conv2d(in_channels=input_channels, out_channels=output_channels, kernel_size=4, stride=1, padding=2)
     r2 = nn.ReLU()
-    return c1, r1, c2, r2
+    return c2, r2
 
 
 def deconv_block(input_channels, output_channels):
-    c1 = nn.ConvTranspose2d(in_channels=input_channels, out_channels=input_channels, kernel_size=4, stride=1, padding=2)
-    r1 = nn.ReLU()
     c2 = nn.ConvTranspose2d(in_channels=input_channels, out_channels=output_channels, kernel_size=4, stride=1, padding=2)
     r2 = nn.ReLU()
-    return c1, r1, c2, r2
+    return c2, r2
 
 
 class Generator(nn.Module):
@@ -46,7 +42,7 @@ class Generator(nn.Module):
         layers.extend([unpool3, bn1])
         b4 = deconv_block(input_channels=5, output_channels=1)
         layers.extend(b4)
-        final = nn.ConvTranspose2d(in_channels=1, out_channels=1, kernel_size=3)
+        final = nn.ConvTranspose2d(in_channels=1, out_channels=1, kernel_size=4)
         layers.append(final)
         self.model = nn.Sequential(*layers)
 
@@ -89,20 +85,19 @@ def train_g(gen, opt, lr_sched, criterion, disc, mixture_dset, train_loader, val
 
                 # for now we batch all the examples from
                 clean_imgs, true_labels = batch_data
-                attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
-                                           preprocessing=mixture_dset.preprocessings[rand_index])
+                #attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
+                #                           preprocessing=mixture_dset.preprocessings[rand_index])
 
                 clean_imgs = clean_imgs.to(Parameters.device)
-                attacked_imgs = attacked_imgs.to(Parameters.device)
+                #attacked_imgs = attacked_imgs.to(Parameters.device)
 
                 attacked_imgs_hat = gen(clean_imgs)
                 # train
-                print(attacked_imgs_hat.shape, attacked_imgs.shape)
+                #print(attacked_imgs_hat.shape, attacked_imgs.shape)
                 loss_value = criterion(attacked_imgs_hat, clean_imgs)
                 loss_value.backward()
                 train_loss.append(loss_value.item())
                 opt.step()
-                print(train_loss[-1])
         lr_sched.step()
         print(f"Epoch Latest Loss: {train_loss[-10:-1]}")
     train_loss = np.array(train_loss)
@@ -147,7 +142,7 @@ def train(mixture_dset, attack_set, max_iter=5, max_internal_iter=2, save_name="
     if gan_warm_start:
         state_dict = torch.load(f"models/gan/{save_name}_g.pth")
         gen.load_state_dict(state_dict)
-    g_opt = torch.optim.SGD(gen.parameters(), lr=0.00001, momentum=0.3, weight_decay=0.1)
+    g_opt = torch.optim.SGD(gen.parameters(), lr=0.001, momentum=0.3, weight_decay=0.1)
     g_lr_sched = torch.optim.lr_scheduler.ExponentialLR(g_opt, gamma=0.95)
     g_criterion = nn.MSELoss()
 

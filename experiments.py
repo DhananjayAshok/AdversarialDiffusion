@@ -16,6 +16,7 @@ import pandas as pd
 
 from diffusion import get_diffusion, load_diffusion
 
+
 def experiment_0(target_model_arch, attack, dataset_class):
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
@@ -33,7 +34,7 @@ def transfer_experiment(target_model_arch1, target_model_arch2, attack, dataset_
 
 
 def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
-                 experiment_name = 'single_model-single_attack-single_dataset', train=True):
+                 experiment_name='single_model-single_attack-single_dataset', train=True):
     '''
     Single target model, single attack on single dataset.
     params:
@@ -45,7 +46,7 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
-        attack_model = get_identity(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
@@ -84,7 +85,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     return attack_results, attack_model_success
 
 
-def experiment_3(train_model_archs, attack, train_dataset_classes, test_model_archs,
+def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_classes, test_model_archs,
                  test_dataset_classes, experiment_name, train=False):
     if len(test_dataset_classes) == 0:
         test_dataset_classes = train_dataset_classes
@@ -92,9 +93,9 @@ def experiment_3(train_model_archs, attack, train_dataset_classes, test_model_ar
         test_model_archs = train_model_archs
     if train:
         attack_set, mixture_dset = get_common(train_model_archs, attack, train_dataset_classes, train=True)
-        attack_model = get_diffusion(mixture_dset, attack_set, save_name=experiment_name)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
     else:
-        attack_model = load_diffusion(experiment_name)
+        attack_model = load_diffusion(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common(test_model_archs, attack, test_dataset_classes, train=True)
     attack_results = measure_attack_success(mixture_dset, attack)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
@@ -169,20 +170,106 @@ def run_transfer_experiment():
 
 
 def run_experiment1():
-    target_model_archs = [(resnet18, "18"), (resnet34, "34"), (resnet50, "50")]
+    target_model_archs = [(resnet18, "18")]#, (resnet34, "34"), (resnet50, "50")]
     attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
-    dataset_classes = [MNIST, KMNIST, FashionMNIST]
+    dataset_classes = [MNIST, KMNIST]#, FashionMNIST]
     columns = ["dataset", "attack", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
     for dataset_class in dataset_classes:
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1("lol", target_model_arch, attack, dataset_class)
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('ddpm', target_model_arch, attack, dataset_class, f"{name}_{dataset_class.__name__}_{attack.__name__}")
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)
     df.to_csv(f"figures/experiment_1.csv", index=False)
+    return df
+
+
+def run_experiment2():
+    target_model_archs = [(resnet18, "18")]#, (resnet34, "34"), (resnet50, "50")]
+    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
+    dataset_classes = [MNIST, KMNIST]#, FashionMNIST]
+    columns = ["dataset", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    for dataset_class in dataset_classes:
+        for target_model_arch in target_model_archs:
+            name = f"ResNet{target_model_arch[1]}"
+            clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_2(f"{name}_{dataset_class.__name__}",
+                                                                                  target_model_arch, attacks,
+                                                                                  dataset_class)
+            data.append([dataset_class.__name__, name, clean_accuracy, robust_accuracy,
+                         model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_2.csv", index=False)
+    return df
+
+
+
+def run_experiment3():
+    # dataset mixture train and test
+    target_model_archs = [(resnet18, "18")]
+    train_dataset_classes = [MNIST, KMNIST]
+    test_dataset_classes = [FashionMNIST]
+    attacks = [ATTACKS['pgd_l2']]
+    columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name="e3_model",
+                                                                          train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=train_dataset_classes,
+                                                                          experiment_name='single_model-single_attack-multiple_dataset')
+    data.append(["Train", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name="e3_model",
+                                                                          train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=test_dataset_classes,
+                                                                          experiment_name="single_model-single_attack-multiple_dataset",
+                                                                          train=False)
+    data.append(["Test", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_3.csv", index=False)
+    return df
+
+
+def run_experiment4():
+    # model mixture train and test
+    target_model_archs = [(resnet18, "18"), (resnet34, "34")]
+    test_model_archs = [(resnet50, "50")]
+    train_dataset_classes = [MNIST]
+    attacks = [ATTACKS['pgd_l2']]
+    columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
+    data = []
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name=f"e4_model",
+                                                                          train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=target_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          experiment_name="multiple_model-single_attack-single_dataset",
+                                                                          test_dataset_classes=train_dataset_classes)
+    data.append(["Train", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+
+    clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name="e4_model",
+                                                                          train_model_archs=target_model_archs,
+                                                                          attack=attacks[0],
+                                                                          test_model_archs=test_model_archs,
+                                                                          train_dataset_classes=train_dataset_classes,
+                                                                          test_dataset_classes=train_dataset_classes,
+                                                                          experiment_name="multiple_model-single_attack-single_dataset",
+                                                                          train=False)
+    data.append(["Test", clean_accuracy, robust_accuracy,
+                 model_robust_accuracy])
+    df = pd.DataFrame(data=data, columns=columns)
+    df.to_csv(f"figures/experiment_4.csv", index=False)
     return df
 
 
