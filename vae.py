@@ -25,6 +25,7 @@ def idx2onehot(idx, n):
 
     return onehot
 
+
 class VAE(nn.Module):
 
     def __init__(self, encoder_layer_sizes, latent_size, decoder_layer_sizes,
@@ -171,7 +172,7 @@ def load_vae(model_name, exp_name):
     return vae
 
 
-def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train_size=0.8):
+def get_vae(model_name, mixture_dset, attack_set, experiment_name, epochs=5, latent_size=2, train_size=0.8):
     whole_train_dataset = mixture_dset
     train_size_int = int(len(whole_train_dataset) * train_size)
     rand_indices = np.arange(len(whole_train_dataset))
@@ -187,8 +188,8 @@ def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train
     val_loader = DataLoader(val_dataset,
                             batch_size=32,
                             shuffle=True)
-    plot_path = f"figures/vae_{model_name}/"
-    model_path = f"models/vae_{model_name}/"
+    plot_path = f"figures/vae_{experiment_name}/"
+    model_path = f"models/vae_{experiment_name}/"
     utils.safe_mkdir(path=plot_path)
     utils.safe_mkdir(path=model_path)
     device = utils.Parameters.device
@@ -200,10 +201,11 @@ def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train
         num_labels=10).to(device)
     if os.path.exists(model_path+"final_model.pth"):
         vae = VAEHolder(vae)
-        vae.load(name=model_name)
+        vae.load(name=experiment_name)
         return vae
 
     optimizer = torch.optim.Adam(vae.parameters(), lr=0.001)
+    sched = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.75)
 
     logs = defaultdict(list)
 
@@ -238,6 +240,8 @@ def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train
                                title="Target")
                 utils.save_img(recon_x[0], save_path=plot_path+f"{epoch}_{iteration}_output.png",
                                title="Output")
+                utils.save_img(x[0]+recon_x[0], save_path=plot_path+f"{epoch}_{iteration}_model_attacked.png",
+                               title="Model Attacked")
 
                 c = torch.arange(0, 10).long().unsqueeze(1).to(device)
                 z = torch.randn([c.size(0), latent_size]).to(device)
@@ -271,6 +275,8 @@ def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train
             for index in range(len(mixture_dset.models)):
                 s_model = np.random.choice(mixture_dset.models[index])
                 idx_mask = (index == idx)
+                if not idx_mask.any():
+                    continue
                 x = X[idx_mask]
                 y = Y[idx_mask]
                 attacked_imgs = attack_set(s_model, x, y, preprocessing=mixture_dset.preprocessings[index])
@@ -281,5 +287,6 @@ def get_vae(model_name, mixture_dset, attack_set, epochs=3, latent_size=2, train
                 avg_loss += loss.item()
         print(f"Validation Loss Average: {avg_loss/len(val_loader)}")
         vae.train()
+        sched.step()
     torch.save(state_dict, f"{model_path}/final_model.pth")
     return VAEHolder(vae)

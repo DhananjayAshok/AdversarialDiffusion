@@ -283,17 +283,7 @@ def measure_attack_success(target_model, mixture_dset, attack_set, no_limit=250,
                 metrics = get_attack_success_measures(s_model, X_slice, advs, y_slice)
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
-
-        # if target_model is not None:
-        #     model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
-        # else:
-        #     model_list = mixture_dset.models[index]
-        # for s_model in model_list:
-        #     advs = attack_set(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessings[index[0]])
-        #     metrics = get_attack_success_measures(s_model, X, advs, y)
-        #     clean_accuracy.append(metrics[0])
-        #     robust_accuracy.append(metrics[1])
-        # no += batch_size
+        no += batch_size
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
 
@@ -318,7 +308,7 @@ def measure_transfer_attack_success(model1, model2, mixture_dset, attack, no_lim
 
 class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_path = "/Users/hariharan/hari_works/adv_diffusion/models"
+    model_path = "models"
     # device = "cpu"
 
 
