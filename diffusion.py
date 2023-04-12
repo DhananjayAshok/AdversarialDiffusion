@@ -84,17 +84,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     for epoch in range(num_epochs):
         # iterate over batch.
         for i, (idxs, batch_data) in tqdm(enumerate(train_loader), total = n_total_step):
-            rand_index = choice(range(len(mixture_dset.models)))
-            # pdb.set_trace()
-            s_model = mixture_dset.models[0][rand_index]
-
-            # for now we batch all the examples from
-            clean_imgs, true_labels = batch_data
-            attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
-                                      preprocessing=mixture_dset.preprocessings[rand_index])
-
-            clean_imgs = clean_imgs.to(Parameters.device)
-            attacked_imgs = attacked_imgs.to(Parameters.device)
+            attacked_images = torch.zeros_like(batch_data[0]).to(Parameters.device)
 
             for idx in set(idxs):
                 s_model = choice(mixture_dset.models[idx])
@@ -102,27 +92,17 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
                 X_slice = batch_data[0][idx_mask]
                 y_slice = batch_data[1][idx_mask]
 
+                attacked_images[idx_mask] = attack_set(s_model, X_slice, y_slice,
+                                                    preprocessing=mixture_dset.preprocessings[idx])
 
-            # attacked_imgs = []
-            # for j, idx in enumerate(idxs):
-            #     clean_img, true_label = batch_data[0][j:j + 1], batch_data[1][j:j + 1]
-            #     # pdb.set_trace()
-            #     s_model = choice(mixture_dset.models[idx])
-            #     attacked_img = attack_set(s_model, clean_img, true_label,
-            #                               preprocessing=mixture_dset.preprocessings[idx])
-            #     attacked_imgs.append(attacked_img)
-            # attacked_imgs = torch.concat(attacked_imgs, dim=0).to(device)
-            # clean_imgs = batch_data[0].to(device)
+            clean_images = batch_data[0].to(Parameters.device)
+            attacked_images_hat = attack_model(clean_images)
 
-            # print(clean_imgs.device)
-            # print(attack_model.runner.model.time_embed[0])
-            # print(attack_model.runner.model.time_embed[0].weight.device)
-
-            attacked_imgs_hat = attack_model(clean_imgs)
             # train
-            loss_value = criterion(attacked_imgs_hat, attacked_imgs)
-            loss_value.backward()
+            # loss_value = criterion(attacked_images_hat, attacked_images)
+            # loss_value.backward()
             optimizer.step()
+            optimizer.zero_grad()
 
             # success of this attack.
             clean_accuracy, robust_accuracy = measure_attack_model_success(mixture_dset, attack_model)
@@ -133,9 +113,9 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
                       )
             if (i + 1) % 500 == 0:
                 torch.save(attack_model.state_dict(), os.path.join(checkpoint_path, f"chkpt_{epoch}.pth"))
-            del clean_imgs
-            del attacked_imgs_hat
-            del attacked_imgs
+            del clean_images
+            del attacked_images_hat
+            del attacked_images
 
         scheduler.step()
 

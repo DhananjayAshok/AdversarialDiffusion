@@ -46,9 +46,11 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
-        attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
-        attack_model = load_vae(diff_model_name, experiment_name)
+        attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     clean_accuracy, robust_accuracy = measure_attack_success(model, mixture_dset, attack_set)
@@ -72,9 +74,11 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
@@ -93,9 +97,11 @@ def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_class
         test_model_archs = train_model_archs
     if train:
         attack_set, mixture_dset = get_common(train_model_archs, attack, train_dataset_classes, train=True)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common(test_model_archs, attack, test_dataset_classes, train=True)
     attack_results = measure_attack_success(mixture_dset, attack)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
@@ -179,7 +185,7 @@ def run_experiment1():
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1(f"{name}_{dataset_class.__name__}_{attack.__name__}", target_model_arch, attack, dataset_class)
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('ddpm', target_model_arch, attack, dataset_class, f"{name}_{dataset_class.__name__}_{attack.__name__}")
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)
