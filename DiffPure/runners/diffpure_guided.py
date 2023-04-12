@@ -11,8 +11,11 @@ import random
 
 import torch
 import torchvision.utils as tvu
-
+import tqdm
 from ..guided_diffusion.script_util import create_model_and_diffusion, model_and_diffusion_defaults
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 class GuidedDiffusion(torch.nn.Module):
     def __init__(self, args, config, device=None, model_dir='pretrained/guided_diffusion'):
@@ -30,8 +33,12 @@ class GuidedDiffusion(torch.nn.Module):
                 model_config[k] = v
         # model_config.update(vars(self.config.model))
         # pdb.set_trace()
+        model_config['num_channels'] = 32
+        # model_config['diffusion_steps'] = 100
         print(f'model_config: {model_config}')
         model, diffusion = create_model_and_diffusion(**model_config)
+        print('num params: ', count_parameters(model) / 10e6 )
+        # pdb.set_trace()
         # model.load_state_dict(torch.load(f'{model_dir}/256x256_diffusion_uncond.pt', map_location='cpu'))
         # model.requires_grad_(False).eval().to(self.device)
 
@@ -69,7 +76,7 @@ class GuidedDiffusion(torch.nn.Module):
                 if bs_id < 2:
                     tvu.save_image((x + 1) * 0.5, os.path.join(out_dir, f'init_{it}.png'))
 
-                for i in reversed(range(total_noise_levels)):
+                for i in reversed(range(total_noise_levels)): # tqdm.tqdm(, total = total_noise_levels):
                     t = torch.tensor([i] * batch_size, device=self.device)
 
                     x = self.diffusion.p_sample(self.model, x, t,

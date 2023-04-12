@@ -179,7 +179,7 @@ def run_experiment1():
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('ddpm', target_model_arch, attack, dataset_class, f"{name}_{dataset_class.__name__}_{attack.__name__}")
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('simple_diffnet', target_model_arch, attack, dataset_class, f"{name}_{dataset_class.__name__}_{attack.__name__}")
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)

@@ -134,3 +134,4 @@ models/
 *.pth
 .DS_Store
 models.zip
+logs/

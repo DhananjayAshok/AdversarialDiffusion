@@ -12,8 +12,37 @@ from tqdm import tqdm
 from pathlib import Path
 from torchvision.models import resnet50, resnet18, resnet34
 import matplotlib.pyplot as plt
+import pdb
+import time
+from simple_diffnet import DiffModel #SimpleUnet, forward_diffusion_sample
+from collections import defaultdict
 
-def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch_size=32, lr=0.001, train_size=0.9,
+def plotting(X, advs, model_attacked, filename):
+    indices = torch.randint(0, len(X), size = (10,))
+    X = X[indices]
+    fig, axes = plt.subplots(nrows = 10, ncols = 3, figsize = (12, 3 * 10))
+    for i in range(10):
+        ax = axes[i]
+        # display the image X[i]
+        ax[0].imshow(X[i][0], cmap = 'gray')
+        ax[0].set_title('Clean image')#, fontsize = 18)
+        ax[0].axis('off')
+
+        # display the adversarial example advs[i]
+        ax[1].imshow(advs[i][0], cmap = 'gray')
+        ax[1].set_title(f'Adversarial image')#, fontsize = 18)
+        ax[1].axis('off')
+
+        # display the attacked image
+        ax[2].imshow(model_attacked[i][0], cmap = 'gray')
+        ax[2].set_title(f'Model attacked')#, fontsize = 18)
+        ax[2].axis('off')
+
+    fig.subplots_adjust(wspace=0.5, hspace = 0.5)
+    fig.savefig(filename, bbox_inches='tight')
+
+
+def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batch_size=256, lr=0.001, train_size=0.9,
           early_stopping=1,
           save_name=""):
 
@@ -30,10 +59,14 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
 
         # load diffpure model.
         attack_model = DiffPure(args, config)
+        # pdb.set_trace()
 
     elif diff_model_name == 'ddpm':
         attack_model = DDPM()
         print(f'Loaded model {diff_model_name} | num params: {count_parameters(attack_model)//10e6}M')
+
+    elif diff_model_name == 'simple_diffnet':
+        attack_model = DiffModel()
 
     # attack_model = DummyModel()
 
@@ -57,13 +90,13 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     val_dataset = Subset(whole_train_dataset, val_indices)
 
     train_loader = DataLoader(train_dataset,
-                              batch_size=4,
+                              batch_size=batch_size,
                               shuffle=True)
     val_loader = DataLoader(val_dataset,
-                            batch_size=4,
+                            batch_size=batch_size,
                             shuffle=True)
-
     attack_model = attack_model.to(Parameters.device)
+    attack_model.train()
     criterion = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(attack_model.parameters(), lr=lr, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.75)
@@ -74,52 +107,74 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
     checkpoint_path = os.path.join(Parameters.model_path, diff_model_name+save_suffix)
     final_path = os.path.join(Parameters.model_path, diff_model_name+save_suffix,
                               "final_chkpt.pt")
+    figures_dir = os.path.join(Parameters.model_path, diff_model_name+save_suffix, 'figures')
     safe_mkdir(checkpoint_path)
+    safe_mkdir(figures_dir)
 
     n_total_step = len(train_loader)
+    logs = defaultdict(dict)
 
     best_val_loss = np.inf
     epochs_without_improvement = 0
     print(f"Starting Training for Mixture class on {attack_model.__class__.__name__+save_suffix}")
+    attack_model.train()
     for epoch in range(num_epochs):
+        optimizer.zero_grad()
         # iterate over batch.
         for i, (idxs, batch_data) in tqdm(enumerate(train_loader), total = n_total_step):
             attacked_images = torch.zeros_like(batch_data[0]).to(Parameters.device)
 
-            for idx in set(idxs):
+            for idx in set(idxs.tolist()):
                 s_model = choice(mixture_dset.models[idx])
                 idx_mask = (idxs == idx)
-                X_slice = batch_data[0][idx_mask]
-                y_slice = batch_data[1][idx_mask]
-
+                X_slice = batch_data[0][idx_mask].to(Parameters.device)
+                y_slice = batch_data[1][idx_mask].to(Parameters.device)
                 attacked_images[idx_mask] = attack_set(s_model, X_slice, y_slice,
                                                     preprocessing=mixture_dset.preprocessings[idx])
 
             clean_images = batch_data[0].to(Parameters.device)
+            # clean_images = 2 * clean_images - 1
+
             attacked_images_hat = attack_model(clean_images)
+            target_noise = attacked_images - clean_images
 
             # train
-            # loss_value = criterion(attacked_images_hat, attacked_images)
-            # loss_value.backward()
+            loss_value = criterion(attacked_images_hat, target_noise)
+            loss_value.backward()
             optimizer.step()
-            optimizer.zero_grad()
+
+            logs[epoch * num_epochs + i]['train_loss'] = loss_value.item()
 
             # success of this attack.
-            clean_accuracy, robust_accuracy = measure_attack_model_success(mixture_dset, attack_model)
-            if (i + 1) % 250 == 0:
+            if (i + 1) % 50 == 0:
+                # preds
+                filename = os.path.join(figures_dir, f'epoch{epoch+1}_step{i+1}.png')
+                clean_accuracy, robust_accuracy = measure_attack_model_success(mixture_dset, attack_model)
+                plotting(clean_images.detach().cpu().numpy(),
+                         advs=attacked_images.detach().cpu().numpy(),
+                         model_attacked=attacked_images_hat.detach().cpu().numpy(),
+                         filename = filename)
+                logs[epoch * num_epochs + i]['train_clean_acc'] = clean_accuracy
+                logs[epoch * num_epochs + i]['train_robust_acc'] = robust_accuracy
                 print(f'epoch {epoch + 1}/{num_epochs}, step: {i + 1}/{n_total_step}: loss = {loss_value:.5f}, '
-                      f'clean accuracy = {100 * clean_accuracy:.2f}'
+                      f'clean accuracy = {100 * clean_accuracy:.2f}, '
                       f'robust accuracy = {100 * robust_accuracy:.2f}'
-                      )
-            if (i + 1) % 500 == 0:
-                torch.save(attack_model.state_dict(), os.path.join(checkpoint_path, f"chkpt_{epoch}.pth"))
+                )
+                torch.save({'attack_model': attack_model.state_dict(), 'logs': logs}, os.path.join(checkpoint_path, f"chkpt_{epoch}.pth"))
             del clean_images
             del attacked_images_hat
             del attacked_images
 
         scheduler.step()
 
-        val_loss = _val(attack_model, val_loader, mixture_dset, attack_set, criterion)
+        val_loss, val_clean_acc, val_robust_acc = _val(attack_model, val_loader, mixture_dset, attack_set, criterion)
+        logs[epoch * num_epochs + i]['val_loss'] = loss_value.item()
+        logs[epoch * num_epochs + i]['val_clean_acc'] = val_clean_acc
+        logs[epoch * num_epochs + i]['val_robust_acc'] = val_robust_acc
+        print(f'epoch {epoch + 1}/{num_epochs}: val loss = {val_loss:.5f}, '
+                      f'val clean accuracy = {100 * val_clean_acc:.2f}'
+                      f'val robust accuracy = {100 * val_robust_acc:.2f}'
+                )
         if val_loss < best_val_loss:
             epochs_without_improvement = 0
             best_val_loss = val_loss
@@ -130,44 +185,38 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=5, batch
                 print(f"Early Stopping...")
                 break
 
-    torch.save(attack_model.state_dict(), final_path)
+    torch.save({'attack_model': attack_model.state_dict(), 'logs': logs}, final_path)
     # test_loss = _val(attack_model, test_loader, criterion)
     # return test_loss
 
 def _val(model, test_loader, mixture_dset, attack_set, criterion):
-    with torch.no_grad():
-        val_losses = []
-        clean_accs = []
-        robust_accs = []
-        for idxs, batch_data in test_loader:
-            rand_index = choice(range(len(mixture_dset.models)))
+    val_losses = []
+    clean_accs = []
+    robust_accs = []
+    for idxs, batch_data in test_loader:
+        X, y = batch_data
+        attacked_images = torch.zeros_like(X).to(Parameters.device)
 
-            s_model = mixture_dset.models[0][rand_index]
+        for idx in set(idxs):
+            s_model = choice(mixture_dset.models[idx])
+            idx_mask = (idxs == idx)
+            X_slice = X[idx_mask]
+            y_slice = y[idx_mask]
 
-            # for now we batch all the examples from
-            clean_imgs, true_labels = batch_data
-            attacked_imgs = attack_set(s_model, clean_imgs, true_labels,
-                                       preprocessing=mixture_dset.preprocessings[rand_index])
-            attacked_imgs = attacked_imgs.to(Parameters.device)
+            attacked_images[idx_mask] = attack_set(s_model, X_slice, y_slice,
+                                                preprocessing=mixture_dset.preprocessings[idx])
 
-            # attacked_imgs = []
-            # for idx in range(len(idxs)):
-            #     clean_img, true_label = batch_data[0][idx:idx + 1], batch_data[1][idx:idx + 1]
-            #     s_model = choice(mixture_dset.models[idx])
-            #     attacked_img = attack_set(s_model, clean_img, true_label,
-            #                                      preprocessing=mixture_dset.preprocessings[idx])
-            #     attacked_imgs.append(attacked_img)
-            # attacked_imgs = torch.stack(attacked_imgs, dim=0).to(device)
+        clean_images = batch_data[0].to(Parameters.device)
+        with torch.no_grad():
+            attacked_images_hat = model(clean_images)
 
-            clean_imgs = batch_data[0].to(Parameters.device)
-            attacked_imgs_predicted = model(clean_imgs)
-            loss_value = criterion(attacked_imgs_predicted, attacked_imgs)
-            clean_acc, robust_acc = measure_attack_model_success(test_loader, mixture_dset, model)
-            clean_accs.append(clean_acc)
-            robust_accs.append(robust_acc)
-            val_losses.append(loss_value)
-        print(f'Clean accuracy: {(sum(clean_accs) / len(clean_accs)) * 100} | Robust accuracy: {(sum(robust_accs) / len(robust_accs)) * 100} | % Loss: {loss_value}')
-        return sum(val_losses) / len(val_losses)
+        loss_value = criterion(attacked_images_hat, attacked_images)
+        clean_acc, robust_acc = measure_attack_model_success(test_loader, mixture_dset, model)
+        clean_accs.append(clean_acc)
+        robust_accs.append(robust_acc)
+        val_losses.append(loss_value)
+    print(f'Clean accuracy: {(sum(clean_accs) / len(clean_accs)) * 100} | Robust accuracy: {(sum(robust_accs) / len(robust_accs)) * 100} | % Loss: {loss_value}')
+    return sum(val_losses) / len(val_losses), sum(clean_accs)/len(clean_accs), sum(robust_accs)/sum(robust_accs)
 
 
 def load_diffusion(diff_model_name, save_name):

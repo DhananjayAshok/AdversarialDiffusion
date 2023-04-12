@@ -5,7 +5,7 @@ from random import random
 from functools import partial
 from collections import namedtuple
 from multiprocessing import cpu_count
-
+import pdb
 import torch
 from torch import nn, einsum
 import torch.nn.functional as F
@@ -765,11 +765,12 @@ class GaussianDiffusion(nn.Module):
         else:
             raise ValueError(f'unknown objective {self.objective}')
 
+        # pdb.set_trace()
         loss = self.loss_fn(model_out, target, reduction = 'none')
         loss = reduce(loss, 'b ... -> b (...)', 'mean')
 
         loss = loss * extract(self.loss_weight, t, loss.shape)
-        return loss.mean()
+        return loss.mean(), model_out
 
     def forward(self, img, *args, **kwargs):
         b, c, h, w, device, img_size, = *img.shape, img.device, self.image_size
@@ -777,7 +778,11 @@ class GaussianDiffusion(nn.Module):
         t = torch.randint(0, self.num_timesteps, (b,), device=device).long()
 
         img = self.normalize(img)
-        return img, self.p_losses(img, t, *args, **kwargs)
+
+        loss, model_out = self.p_losses(img, t, *args, **kwargs)
+        out = model_out.mean(dim=1, keepdims=True)
+
+        return loss, out
 
 # dataset classes
 

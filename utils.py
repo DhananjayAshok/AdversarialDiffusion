@@ -23,7 +23,7 @@ def show_img(tensor_image, title=None):
     plt.show()
 
 
-def show_grid(imgs, title=None, captions=None):
+def show_grid(imgs, title=None, captions=None, filename = 'file.png'):
     """
     Plots a grid of all the provided images. Useful to show original and adversaries side by side.
 
@@ -53,7 +53,7 @@ def show_grid(imgs, title=None, captions=None):
                 axs[i, j].set_xlabel(str(captions[i][j]))
     if title is not None:
         fig.suptitle(title)
-    plt.show()
+    plt.savefig(filename)
 
 
 def logit_or_pred_to_pred(pred):
@@ -69,7 +69,7 @@ def logit_or_pred_to_pred(pred):
 
 
 def show_adversary_vs_original_with_preds(
-    advs, img_X, y, adv_pred, pred, defended_pred=None, n_show=5, index_to_class=None
+    advs, img_X, y, adv_pred, pred, filename, defended_pred=None, n_show=5, index_to_class=None,
 ):
     adv_pred = logit_or_pred_to_pred(adv_pred)
     pred = logit_or_pred_to_pred(pred)
@@ -103,7 +103,7 @@ def show_adversary_vs_original_with_preds(
     # print(len(imgs))
     # print([len(x) for x in imgs])
 
-    show_grid(imgs, title="Adversarial Image vs Original Image", captions=captions)
+    show_grid(imgs, title="Adversarial Image vs Original Image", captions=captions, filename = filename)
 
 
 def get_accuracy_logits(y, logits):
@@ -252,11 +252,12 @@ def measure_attack_stats(X, advs, disp=False):
     return l1_norm, l2_norm, linf_norm
 
 
-def measure_attack_success(target_model, mixture_dset, attack_set, no_limit=250, batch_size=32):
+def measure_attack_success(mixture_dset, attack_set, target_model = None, no_limit=250, batch_size=32):
     dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
     no = 0
     clean_accuracy = []
     robust_accuracy = []
+    model_attack_success = []
     for index, data in dataloader:
         if no_limit is not None and no > no_limit:
             break
@@ -309,7 +310,7 @@ def measure_transfer_attack_success(model1, model2, mixture_dset, attack, no_lim
 
 class Parameters:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model_path = "/Users/hariharan/hari_works/adv_diffusion/models"
+    model_path = "/home/mmml/MMML/AdversarialDiffusion/models"
     # device = "cpu"
 
 
@@ -325,6 +326,8 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
         if no_limit is not None and no > no_limit:
             break
         X, y = data
+        X = X.to(Parameters.device)
+        y = y.to(Parameters.device)
 
         advs = attack_model(X)
 
@@ -363,7 +366,7 @@ def get_common(target_model_archs, attacks_s, dataset_classes, train=True):
         for model, save_suffix in target_model_archs:
             model_inst = model()
             m = get_model(model_inst, dset_class, save_suffix)
-            model_sublist.append(m)
+            model_sublist.append(m.to(Parameters.device))
         model_list.append(model_sublist)
     attack_set = AttackSet(attacks_s)
     mixture_dset = DatasetAndModels(dataset_classes=dataset_classes, model_list=model_list, train=train)

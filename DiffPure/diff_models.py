@@ -14,6 +14,7 @@ import numpy as np
 import time
 import argparse
 import yaml
+import pdb
 
 device = torch.device('cuda:0') if torch.cuda.is_available() else torch.device('cpu')
 
@@ -53,24 +54,29 @@ class DiffPure(torch.nn.Module):
         counter = self.counter.item()
         batch, nc, h, w = x.shape
         x = x.expand(batch, 3, h, w)
-        if counter % 5 == 0:
-            print(f'diffusion times: {counter}')
+        # if counter % 5 == 0:
+        #     print(f'diffusion times: {counter}')
 
         # imagenet [3, 224, 224] -> [3, 256, 256] -> [3, 224, 224]
         if 'imagenet' in self.args.domain:
             x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False)
 
-        start_time = time.time()
+        # start_time = time.time()
         x_re = self.runner.image_editing_sample((x - 0.5) * 2, bs_id=counter, tag=self.tag)
-        minutes, seconds = divmod(time.time() - start_time, 60)
+        # end_time = time.time()
+        # print('image editing sample: ', end_time - start_time, ' s')
+        # pdb.set_trace()
+        # minutes, seconds = divmod(time.time() - start_time, 60)
 
+        # s = time.time()
         if 'imagenet' in self.args.domain:
             x_re = F.interpolate(x_re, size=(224, 224), mode='bilinear', align_corners=False)
+        # e = time.time()
 
-        if counter % 5 == 0:
-            print(f'x shape (before diffusion models): {x.shape}')
-            print(f'x shape (before classifier): {x_re.shape}')
-            print("Sampling time per batch: {:0>2}:{:05.2f}".format(int(minutes), seconds))
+        # if counter % 5 == 0:
+        #     print(f'x shape (before diffusion models): {x.shape}')
+        #     print(f'x shape (before classifier): {x_re.shape}')
+        #     print("Sampling time per batch: {:0>2}:{:05.2f}".format(int(minutes), seconds))
 
         out = (x_re + 1) * 0.5
 
@@ -88,6 +94,7 @@ def dict_to_namespace(d):
             setattr(namespace, k, v)
     return namespace
 
+# from unet import SimpleUnet
 if __name__ == '__main__':
     config_file = 'configs/guided_diffusion_config.yaml'
     # Load YAML file into a Python dictionary

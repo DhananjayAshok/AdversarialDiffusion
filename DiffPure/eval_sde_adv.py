@@ -75,7 +75,7 @@ class SDE_Adv_Model(nn.Module):
         # imagenet [3, 224, 224] -> [3, 256, 256] -> [3, 224, 224]
         if 'imagenet' in self.args.domain:
             x = F.interpolate(x, size=(256, 256), mode='bilinear', align_corners=False)
-        pdb.set_trace()
+        # pdb.set_trace()
 
         start_time = time.time()
         x_re = self.runner.image_editing_sample((x - 0.5) * 2, bs_id=counter, tag=self.tag)

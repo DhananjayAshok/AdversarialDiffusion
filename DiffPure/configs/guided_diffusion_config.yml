@@ -19,7 +19,7 @@ args:
   sample_step: 1
   score_type: guided_diffusion
   seed: 122
-  t: 500
+  t: 50
   t_delta: 15
   use_bm: false
   verbose: info
