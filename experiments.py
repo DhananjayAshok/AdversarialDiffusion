@@ -11,7 +11,7 @@ from tqdm import tqdm
 from pathlib import Path
 from torchvision.models import resnet50, resnet18, resnet34
 import matplotlib.pyplot as plt
-from gan import get_identity
+from vae import get_vae, load_vae
 import pandas as pd
 
 from diffusion import get_diffusion, load_diffusion
@@ -46,9 +46,11 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     clean_accuracy, robust_accuracy = measure_attack_success(model, mixture_dset, attack_set)
@@ -72,9 +74,11 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
@@ -93,9 +97,11 @@ def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_class
         test_model_archs = train_model_archs
     if train:
         attack_set, mixture_dset = get_common(train_model_archs, attack, train_dataset_classes, train=True)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
+        #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common(test_model_archs, attack, test_dataset_classes, train=True)
     attack_results = measure_attack_success(mixture_dset, attack)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
@@ -170,9 +176,9 @@ def run_transfer_experiment():
 
 
 def run_experiment1():
-    target_model_archs = [(resnet18, "18")]#, (resnet34, "34"), (resnet50, "50")]
-    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
-    dataset_classes = [MNIST, KMNIST]#, FashionMNIST]
+    target_model_archs = [(resnet18, "18")]
+    attacks = [ATTACKS['pgd'], ATTACKS["fgsm"]]
+    dataset_classes = [MNIST, KMNIST]
     columns = ["dataset", "attack", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
     for dataset_class in dataset_classes:
@@ -189,7 +195,7 @@ def run_experiment1():
 
 def run_experiment2():
     target_model_archs = [(resnet18, "18")]#, (resnet34, "34"), (resnet50, "50")]
-    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
+    attacks = [ATTACKS['pgd'], ATTACKS["fgsm"]]
     dataset_classes = [MNIST, KMNIST]#, FashionMNIST]
     columns = ["dataset", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
@@ -212,7 +218,7 @@ def run_experiment3():
     target_model_archs = [(resnet18, "18")]
     train_dataset_classes = [MNIST, KMNIST]
     test_dataset_classes = [FashionMNIST]
-    attacks = [ATTACKS['pgd_l2']]
+    attacks = [ATTACKS['pgd']]
     columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
     clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name="e3_model",
@@ -245,7 +251,7 @@ def run_experiment4():
     target_model_archs = [(resnet18, "18"), (resnet34, "34")]
     test_model_archs = [(resnet50, "50")]
     train_dataset_classes = [MNIST]
-    attacks = [ATTACKS['pgd_l2']]
+    attacks = [ATTACKS['pgd']]
     columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
     clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_3(diff_model_name=f"e4_model",

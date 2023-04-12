@@ -23,7 +23,16 @@ def show_img(tensor_image, title=None):
     plt.show()
 
 
-def show_grid(imgs, title=None, captions=None, filename = 'file.png'):
+def save_img(tensor_image, save_path, title=None):
+    plt.imshow(tensor_image.detach().cpu().permute(1, 2, 0))
+    if title is not None:
+        plt.title(title)
+    plt.savefig(save_path)
+    plt.clf()
+    plt.close('all')
+
+
+def show_grid(imgs, title=None, captions=None):
     """
     Plots a grid of all the provided images. Useful to show original and adversaries side by side.
 
@@ -275,17 +284,7 @@ def measure_attack_success(mixture_dset, attack_set, target_model = None, no_lim
                 metrics = get_attack_success_measures(s_model, X_slice, advs, y_slice)
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
-
-        # if target_model is not None:
-        #     model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
-        # else:
-        #     model_list = mixture_dset.models[index]
-        # for s_model in model_list:
-        #     advs = attack_set(s_model, input_batch=X, true_labels=y, preprocessing=mixture_dset.preprocessings[index[0]])
-        #     metrics = get_attack_success_measures(s_model, X, advs, y)
-        #     clean_accuracy.append(metrics[0])
-        #     robust_accuracy.append(metrics[1])
-        # no += batch_size
+        no += batch_size
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
 
@@ -318,6 +317,7 @@ device = Parameters.device
 
 
 def measure_attack_model_success(mixture_dset, attack_model, target_model=None, no_limit=250, batch_size=32):
+    from vae import VAEHolder
     dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
     no = 0
     clean_accuracy = []
@@ -326,10 +326,11 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
         if no_limit is not None and no > no_limit:
             break
         X, y = data
-        X = X.to(Parameters.device)
-        y = y.to(Parameters.device)
-
-        advs = attack_model(X)
+        X, y = X.to(Parameters.device), y.to(Parameters.device)
+        if isinstance(attack_model, VAEHolder):
+            advs = attack_model(X, y)
+        else:
+            advs = attack_model(X)
 
         for idx in set(index):
             model_list = [target_model] if target_model is not None else mixture_dset.models[idx]
@@ -342,16 +343,6 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
                 metrics = get_attack_success_measures(s_model, X_slice, advs_slice, y_slice)
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
-
-        # if target_model is not None:
-        #     model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
-        # else:
-        #     model_list = mixture_dset.models[0] #[index]
-        # for s_model in model_list:
-        #     advs = attack_model(X)
-        #     metrics = get_attack_success_measures(s_model, X, advs, y)
-        #     clean_accuracy.append(metrics[0])
-        #     robust_accuracy.append(metrics[1])
         no += batch_size
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
