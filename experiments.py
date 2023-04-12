@@ -46,7 +46,7 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
-        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set, experiment_name)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
@@ -60,7 +60,7 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
 
 
 def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
-                 experiment_name = 'single_model-multiple_attack-single_dataset', train=False):
+                 experiment_name = 'single_model-multiple_attack-single_dataset', train=True):
     '''
     single target model, multiple attack on single dataset.
 
@@ -74,7 +74,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     '''
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
-        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
+        #attack_model = get_vae(diff_model_name, mixture_dset, attack_set, experiment_name)
         attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
@@ -110,9 +110,9 @@ def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_class
 
 def run_experiment0():
     target_model_archs = [(resnet18, "18"), (resnet34, "34"), (resnet50, "50")]
-    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
-    epsilons = [0.5*i for i in range(20)]
-    dataset_classes = [KMNIST]
+    attacks = [ATTACKS['pgd']]#, ATTACKS["fgsm"]]
+    epsilons = [0.01*i for i in range(2)]
+    dataset_classes = [MNIST, KMNIST]
     for dataset_class in dataset_classes:
         for attack in attacks:
             for target_model_arch in target_model_archs:
@@ -144,8 +144,8 @@ def run_experiment0():
 
 def run_transfer_experiment():
     target_model_archs = [(resnet18, "18")]
-    attacks = [ATTACKS['pgd_l2'], ATTACKS["fgsm"]]
-    epsilons = [0.5*i for i in range(20)]
+    attacks = [ATTACKS['pgd'], ATTACKS["fgsm"]]
+    epsilons = [0.01*i for i in range(20)]
     dataset_classes = [MNIST, KMNIST]
     for dataset_class in dataset_classes:
         for attack in attacks:
@@ -194,23 +194,22 @@ def run_experiment1():
 
 
 def run_experiment2():
-    target_model_archs = [(resnet18, "18")]#, (resnet34, "34"), (resnet50, "50")]
+    target_model_archs = [(resnet18, "18")]
     attacks = [ATTACKS['pgd'], ATTACKS["fgsm"]]
-    dataset_classes = [MNIST, KMNIST]#, FashionMNIST]
+    dataset_classes = [MNIST, KMNIST]
     columns = ["dataset", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy"]
     data = []
     for dataset_class in dataset_classes:
         for target_model_arch in target_model_archs:
             name = f"ResNet{target_model_arch[1]}"
-            clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_2(f"{name}_{dataset_class.__name__}",
+            clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_2("ddpm",
                                                                                   target_model_arch, attacks,
-                                                                                  dataset_class)
+                                                                                  dataset_class, f"{name}_{dataset_class.__name__}")
             data.append([dataset_class.__name__, name, clean_accuracy, robust_accuracy,
                          model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)
     df.to_csv(f"figures/experiment_2.csv", index=False)
     return df
-
 
 
 def run_experiment3():
