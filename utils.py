@@ -23,6 +23,15 @@ def show_img(tensor_image, title=None):
     plt.show()
 
 
+def save_img(tensor_image, save_path, title=None):
+    plt.imshow(tensor_image.detach().cpu().permute(1, 2, 0))
+    if title is not None:
+        plt.title(title)
+    plt.savefig(save_path)
+    plt.clf()
+    plt.close('all')
+
+
 def show_grid(imgs, title=None, captions=None):
     """
     Plots a grid of all the provided images. Useful to show original and adversaries side by side.
@@ -303,6 +312,7 @@ device = Parameters.device
 
 
 def measure_attack_model_success(mixture_dset, attack_model, target_model=None, no_limit=250, batch_size=32):
+    from vae import VAEHolder
     dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
     no = 0
     clean_accuracy = []
@@ -311,12 +321,16 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
         if no_limit is not None and no > no_limit:
             break
         X, y = data
+        X, y = X.to(Parameters.device), y.to(Parameters.device)
         if target_model is not None:
             model_list = [target_model]  # You are guaranteering that the model can run on all datasets sensibly
         else:
             model_list = mixture_dset.models[index]
         for s_model in model_list:
-            advs = attack_model(X)
+            if isinstance(attack_model, VAEHolder):
+                advs = attack_model(X, y)
+            else:
+                advs = attack_model(X)
             metrics = get_attack_success_measures(s_model, X, advs, y)
             clean_accuracy.append(metrics[0])
             robust_accuracy.append(metrics[1])

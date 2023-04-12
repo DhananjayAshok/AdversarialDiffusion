@@ -9,7 +9,7 @@ class ImageAttack:
         self.params = params
         self.attack_class = attack_class
         if params is None:
-            self.params = {"eps": 1.0}
+            self.params = {"eps": 0.1}
 
     def __call__(
         self, model, input_batch, true_labels, target_labels=None, preprocessing=None):
