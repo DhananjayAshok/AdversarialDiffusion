@@ -47,13 +47,13 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
         #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs = 20, save_name= experiment_name)
     else:
         attack_model = load_diffusion(diff_model_name, experiment_name)
         #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
-    clean_accuracy, robust_accuracy = measure_attack_success(model, mixture_dset, attack_set)
+    clean_accuracy, robust_accuracy = measure_attack_success(mixture_dset, attack_set, model)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model, target_model=model)
     print(attack_model_success)
     return clean_accuracy, robust_accuracy, attack_model_success[1]
@@ -81,7 +81,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
         #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=False)
     model = mixture_dset.models[0][0]
-    attack_model_success = measure_attack_model_success(model, mixture_dset, attack_model)
+    attack_model_success = measure_attack_model_success(mixture_dset, attack_model, target_model= model)
     attack_results = []
     for attack in attacks: # what is the efficacy on every attack.
         attack_success = measure_attack_success(mixture_dset, attack, target_model=model)
@@ -185,7 +185,7 @@ def run_experiment1():
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('simple_diffnet', target_model_arch, attack, dataset_class, f"{name}_{dataset_class.__name__}_{attack.__name__}")
+                clean_accuracy, robust_accuracy, model_robust_accuracy = experiment_1('simple_diffnet', target_model_arch, attack, dataset_class, experiment_name= f"{name}_{dataset_class.__name__}_{attack.__name__}", train = True)
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy])
     df = pd.DataFrame(data=data, columns=columns)
@@ -281,3 +281,4 @@ def run_experiment4():
 
 if __name__ == "__main__":
     run_experiment1()
+    # run_experiment0()

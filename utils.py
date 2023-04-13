@@ -185,6 +185,7 @@ def get_attack_success_measures(model, inps, advs, true_labels):
     inp_preds = model(inps).argmax(-1)
     adv_preds = model(advs).argmax(-1)
     n_points = len(true_labels)
+    # pdb.set_trace()
     for i in range(n_points):
         inp_pred = inp_preds[i]
         adv_pred = adv_preds[i]
@@ -200,6 +201,9 @@ def get_attack_success_measures(model, inps, advs, true_labels):
         success.append(not pred_same)
 
     robust_accuracy = robust_accuracy / n_points
+    if robust_accuracy > 1:
+        print(n_points)
+        pdb.set_trace()
     accuracy = n_correct / n_points
     if n_correct != 0:
         conditional_robust_accuracy = conditional_robust_accuracy / n_correct
@@ -266,7 +270,6 @@ def measure_attack_success(mixture_dset, attack_set, target_model = None, no_lim
     no = 0
     clean_accuracy = []
     robust_accuracy = []
-    model_attack_success = []
     for index, data in dataloader:
         if no_limit is not None and no > no_limit:
             break
@@ -318,6 +321,7 @@ device = Parameters.device
 
 def measure_attack_model_success(mixture_dset, attack_model, target_model=None, no_limit=250, batch_size=32):
     from vae import VAEHolder
+    from simple_diffnet import SimpleDiff
     dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
     no = 0
     clean_accuracy = []
@@ -329,8 +333,11 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
         X, y = X.to(Parameters.device), y.to(Parameters.device)
         if isinstance(attack_model, VAEHolder):
             advs = attack_model(X, y)
-        else:
-            advs = attack_model(X)
+        elif isinstance(attack_model, SimpleDiff):
+            attack_model.eval()
+            with torch.no_grad():
+                advs = attack_model(X)
+                # advs = X + noise
 
         for idx in set(index):
             model_list = [target_model] if target_model is not None else mixture_dset.models[idx]
@@ -344,6 +351,8 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
         no += batch_size
+    if np.mean(robust_accuracy) > 1:
+        pdb.set_trace()
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
 

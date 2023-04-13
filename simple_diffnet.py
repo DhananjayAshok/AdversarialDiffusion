@@ -127,7 +127,7 @@ class SimpleUnet(nn.Module):
             x = up(x, t)
         return self.output(x)
 
-class DiffModel(nn.Module):
+class SimpleDiff(nn.Module):
     def __init__(self):
         super().__init__()
         # Define beta schedule
