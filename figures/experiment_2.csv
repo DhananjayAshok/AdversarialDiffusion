@@ -1,0 +1,2 @@
+dataset,target_model,clean_accuracy,robust_accuracy,model_robust_accuracy,l2_norm,linf_norm
+MNIST,ResNet18,0.984375,0.692626953125,0.68359375,15.281468510627747,1.1228237748146057

@@ -20,7 +20,7 @@ from collections import defaultdict
 def plotting(X, advs, model_attacked, filename):
     indices = torch.randint(0, len(X), size = (10,))
     X = X[indices]
-    fig, axes = plt.subplots(nrows = 10, ncols = 3, figsize = (12, 3 * 10))
+    fig, axes = plt.subplots(nrows = 10, ncols = 3, figsize = (9, 3 * 10))
     for i in range(10):
         ax = axes[i]
         # display the image X[i]
@@ -38,11 +38,11 @@ def plotting(X, advs, model_attacked, filename):
         ax[2].set_title(f'Model attacked')#, fontsize = 18)
         ax[2].axis('off')
 
-    fig.subplots_adjust(wspace=0.5, hspace = 0.5)
+    fig.subplots_adjust(wspace=0., hspace = 0.)
     fig.savefig(filename, bbox_inches='tight')
 
 
-def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batch_size=256, lr=0.0001, train_size=0.9,
+def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=30, batch_size=256, lr=0.0001, train_size=0.9,
           early_stopping=5,
           save_name=""):
 
@@ -107,6 +107,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batc
     checkpoint_path = os.path.join(Parameters.model_path, diff_model_name+save_suffix)
     final_path = os.path.join(Parameters.model_path, diff_model_name+save_suffix,
                               "final_chkpt.pt")
+    # pdb.set_trace()
     figures_dir = os.path.join(Parameters.model_path, diff_model_name+save_suffix, 'figures')
     safe_mkdir(checkpoint_path)
     safe_mkdir(figures_dir)
@@ -114,7 +115,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batc
     n_total_step = len(train_loader)
     logs = defaultdict(dict)
 
-    best_val_loss = np.inf
+    best_train_loss = np.inf
     epochs_without_improvement = 0
     print(f"Starting Training for Mixture class on {attack_model.__class__.__name__+save_suffix}")
     for epoch in range(num_epochs):
@@ -136,10 +137,10 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batc
             # clean_images = 2 * clean_images - 1
 
             predicted_noise = attack_model(clean_images)
-            # target_noise = attacked_images - clean_images
+            target_noise = attacked_images - clean_images
 
             # train
-            loss_value = criterion(predicted_noise, attacked_images) # target_noise)
+            loss_value = criterion(target_noise, predicted_noise) # target_noise)
             loss_value.backward()
             optimizer.step()
             print('loss: ', loss_value.item())
@@ -176,9 +177,9 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=15, batc
                       f'val clean accuracy = {100 * val_clean_acc:.2f}, '
                       f'val robust accuracy = {100 * val_robust_acc:.2f}'
                 )
-        if val_loss < best_val_loss:
+        if loss_value.item() < best_train_loss:
             epochs_without_improvement = 0
-            best_val_loss = val_loss
+            best_train_loss = loss_value.item()
         else:
             epochs_without_improvement += 1
         if early_stopping is not None:
