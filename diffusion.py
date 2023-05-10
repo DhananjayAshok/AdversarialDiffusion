@@ -18,24 +18,29 @@ from simple_diffnet import SimpleDiff #SimpleUnet, forward_diffusion_sample
 from collections import defaultdict
 
 def plotting(X, advs, model_attacked, filename):
-    indices = torch.randint(0, len(X), size = (10,))
+    indices = torch.randint(0, len(advs), size = (10,))
     X = X[indices]
+    advs = advs[indices]
+    model_attacked = model_attacked[indices]
     fig, axes = plt.subplots(nrows = 10, ncols = 3, figsize = (9, 3 * 10))
     for i in range(10):
         ax = axes[i]
         # display the image X[i]
         ax[0].imshow(X[i][0], cmap = 'gray')
-        ax[0].set_title('Clean image')#, fontsize = 18)
+        if i == 0:
+            ax[0].set_title('Clean image', fontsize = 16)
         ax[0].axis('off')
 
         # display the adversarial example advs[i]
         ax[1].imshow(advs[i][0], cmap = 'gray')
-        ax[1].set_title(f'Adversarial image')#, fontsize = 18)
+        if i == 0:
+            ax[1].set_title(f'Adversarial image', fontsize = 16)
         ax[1].axis('off')
 
         # display the attacked image
         ax[2].imshow(model_attacked[i][0], cmap = 'gray')
-        ax[2].set_title(f'Model attacked')#, fontsize = 18)
+        if i == 0:
+            ax[2].set_title(f'Diffusion attacked', fontsize = 16)
         ax[2].axis('off')
 
     fig.subplots_adjust(wspace=0., hspace = 0.)
@@ -115,10 +120,18 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=30, batc
     n_total_step = len(train_loader)
     logs = defaultdict(dict)
 
+    start_epoch = 0
+    if os.path.exists(final_path):
+        attack_model, optimizer, scheduler, logs = load_diffusion(diff_model_name= 'simple_diffnet', save_name = save_name)
+        attack_model.to(Parameters.device)
+        attack_model.train()
+        steps_so_far = max(list(logs.keys()))
+        start_epoch = steps_so_far // len(train_loader)
+
     best_train_loss = np.inf
     epochs_without_improvement = 0
     print(f"Starting Training for Mixture class on {attack_model.__class__.__name__+save_suffix}")
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         optimizer.zero_grad()
         attack_model.train()
         # iterate over batch.
@@ -162,7 +175,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=30, batc
                       f'clean accuracy = {100 * clean_accuracy:.2f}, '
                       f'robust accuracy = {100 * robust_accuracy:.2f}'
                 )
-                torch.save({'attack_model': attack_model.state_dict(), 'logs': logs}, os.path.join(checkpoint_path, f"chkpt_{epoch}.pth"))
+                torch.save({'attack_model': attack_model.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), 'logs': logs}, final_path)
             del clean_images
             del predicted_noise
             del attacked_images
@@ -187,7 +200,7 @@ def get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs=30, batc
                 print(f"Early Stopping...")
                 break
 
-    torch.save({'attack_model': attack_model.state_dict(), 'logs': logs}, final_path)
+    torch.save({'attack_model': attack_model.state_dict(), 'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(), 'logs': logs}, final_path)
     # test_loss = _val(attack_model, test_loader, criterion)
     # return test_loss
     return attack_model
@@ -235,6 +248,16 @@ def load_diffusion(diff_model_name, save_name):
 
     ckpt = torch.load(final_path)
     state_dict = ckpt['attack_model']
+    opt_state_dict = None
+    scheduler_state_dict = None
+    logs = None
+
+    if 'optimizer' in ckpt:
+        opt_state_dict = ckpt['optimizer']
+    if 'scheduler' in ckpt:
+        scheduler_state_dict = ckpt['scheduler']
+    if 'logs' in ckpt:
+        logs = ckpt['logs']
 
     if diff_model_name in ['guided_diffusion']:
         config_file = f'DiffPure/{diff_model_name}_config.yml'
@@ -257,5 +280,10 @@ def load_diffusion(diff_model_name, save_name):
     # load in the weights
     attack_model.load_state_dict(state_dict)
     attack_model = attack_model.to(Parameters.device)
+    optimizer = torch.optim.Adam(attack_model.parameters(), lr=0.0001, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.75)
 
-    return attack_model
+    # optimizer.load_state_dict(opt_state_dict)
+    # scheduler.load_state_dict(scheduler_state_dict)
+
+    return attack_model, optimizer, scheduler, logs

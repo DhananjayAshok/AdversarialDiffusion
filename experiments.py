@@ -48,17 +48,21 @@ def experiment_1(diff_model_name, target_model_arch, attack, dataset_class,
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=train)
         #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs = 20, save_name= experiment_name)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, num_epochs = 30, save_name= experiment_name, batch_size= 512)
     else:
-        attack_model = load_diffusion(diff_model_name, experiment_name)
+        ckpt = load_diffusion(diff_model_name, experiment_name)
+        attack_model = ckpt[0]
         #attack_model = load_vae(diff_model_name, experiment_name)
+
+    attack_model.sample_plot_image(IMG_SIZE = 64, filename = f'figures/{experiment_name}.png')
+
     attack_set, mixture_dset = get_common([target_model_arch], [attack], [dataset_class], train=False)
     model = mixture_dset.models[0][0]
     clean_accuracy, robust_accuracy = measure_attack_success(mixture_dset, attack_set, model)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model, target_model=model)
 
     model_l2_norm, model_linf_norm = measure_attack_model_epsilon_bound(mixture_dset, attack_model)
-
+    visualize_images(mixture_dset, attack_set, attack_model, filename = '/home/mmml/MMML/AdversarialDiffusion/models/' + model.__class__.__name__ + '/' +experiment_name + '/figures_with_labels/', no_limit=250, batch_size=32)
     return clean_accuracy, robust_accuracy, attack_model_success[1], model_l2_norm, model_linf_norm
 
 import pdb
@@ -78,9 +82,10 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     if train:
         attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=True)
         #attack_model = get_vae(diff_model_name, mixture_dset, attack_set, experiment_name)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name = experiment_name)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name = experiment_name, num_epochs = 30)
     else:
-        attack_model = load_diffusion(diff_model_name, experiment_name)
+        ckpt = load_diffusion(diff_model_name, experiment_name)
+        attack_model = ckpt[0]
         #attack_model = load_vae(diff_model_name, experiment_name)
     attack_set, mixture_dset = get_common([target_model_arch], attacks, [dataset_class], train=False)
     model = mixture_dset.models[0][0]
@@ -89,7 +94,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     clean_accuracy, robust_accuracy = measure_attack_success(mixture_dset, attack_set, target_model=model)
 
     model_l2_norm, model_linf_norm = measure_attack_model_epsilon_bound(mixture_dset, attack_model)
-
+    visualize_images(mixture_dset, attack_set, attack_model, filename = '/home/mmml/MMML/AdversarialDiffusion/models/' + model.__class__.__name__ + '/' + experiment_name + '/figures_with_labels/', no_limit=250, batch_size=32)
     # attack_results = []
     # for attack in attacks: # what is the efficacy on every attack.
     #     attack_s = AttackSet([attack])
@@ -97,7 +102,7 @@ def experiment_2(diff_model_name, target_model_arch, attacks, dataset_class,
     #     attack_results.append(attack_success)
     return clean_accuracy, robust_accuracy, attack_model_success[1], model_l2_norm, model_linf_norm
 
-
+from utils import visualize_images
 def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_classes, test_model_archs,
                  test_dataset_classes, experiment_name, train=False):
     if len(test_dataset_classes) == 0:
@@ -107,18 +112,19 @@ def experiment_3(diff_model_name, train_model_archs, attack, train_dataset_class
     if train:
         attack_set, mixture_dset = get_common(train_model_archs, attack, train_dataset_classes, train=True)
         #attack_model = get_vae(diff_model_name, mixture_dset, attack_set)
-        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name)
+        attack_model = get_diffusion(diff_model_name, mixture_dset, attack_set, save_name=experiment_name, num_epochs = 30)
     else:
-        attack_model = load_diffusion(diff_model_name, experiment_name)
+        ckpt = load_diffusion(diff_model_name, experiment_name)
+        attack_model = ckpt[0]
         #attack_model = load_vae(diff_model_name, experiment_name)
 
-    attack_set, mixture_dset = get_common(test_model_archs, attack, test_dataset_classes, train=True)
+    attack_set, mixture_dset = get_common(test_model_archs, attack, test_dataset_classes, train=False)
     attack_results = measure_attack_success(mixture_dset, attack_set)
     attack_model_success = measure_attack_model_success(mixture_dset, attack_model)
 
     model_l2_norm, model_linf_norm = measure_attack_model_epsilon_bound(mixture_dset, attack_model)
-
-    return *attack_results, attack_model_success, model_l2_norm, model_linf_norm
+    visualize_images(mixture_dset, attack_set, attack_model, filename = '/home/mmml/MMML/AdversarialDiffusion/models/' + experiment_name + '/figures_with_labels/', no_limit=250, batch_size=32)
+    return *attack_results, attack_model_success[1], model_l2_norm, model_linf_norm
 
 
 def run_experiment0():
@@ -190,15 +196,20 @@ def run_transfer_experiment():
 
 def run_experiment1():
     target_model_archs = [(resnet18, "18")]
-    attacks = [ATTACKS['pgd'], ATTACKS["fgsm"]]
-    dataset_classes = [MNIST, KMNIST]
+    attacks = [ATTACKS["fgsm"]] #[ATTACKS['pgd'],
+    dataset_classes = [KMNIST] #[MNIST, KMNIST]
     columns = ["dataset", "attack", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy", 'l2_norm', 'linf_norm']
     data = []
     for dataset_class in dataset_classes:
         for attack in attacks:
             for target_model_arch in target_model_archs:
                 name = f"ResNet{target_model_arch[1]}"
-                clean_accuracy, robust_accuracy, model_robust_accuracy, l2_norm, linf_norm = experiment_1('simple_diffnet', target_model_arch, attack, dataset_class, experiment_name= f"{name}_{dataset_class.__name__}_{attack.__name__}", train = True)
+                print('Experiment 1: ', dataset_class, attack, target_model_arch)
+                clean_accuracy, robust_accuracy, model_robust_accuracy, l2_norm, linf_norm = experiment_1('simple_diffnet',
+                                                                                                          target_model_arch, attack,
+                                                                                                          dataset_class,
+                                                                                                          experiment_name= f"{name}_{dataset_class.__name__}_{attack.__name__}",
+                                                                                                          train = False)
                 data.append([dataset_class.__name__, attack.__name__, name, clean_accuracy, robust_accuracy,
                              model_robust_accuracy, l2_norm, linf_norm])
     df = pd.DataFrame(data=data, columns=columns)
@@ -215,6 +226,7 @@ def run_experiment2():
     for dataset_class in dataset_classes:
         for target_model_arch in target_model_archs:
             name = f"ResNet{target_model_arch[1]}"
+            print('Experiment 2: ', dataset_class, attacks, target_model_arch)
             clean_accuracy, robust_accuracy, model_robust_accuracy, l2_norm, linf_norm = experiment_2("simple_diffnet",
                                                                                   target_model_arch, attacks,
                                                                                   dataset_class, f"{name}_{dataset_class.__name__}",
@@ -234,6 +246,7 @@ def run_experiment3():
     attacks = [ATTACKS['pgd']]
     columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy", 'l2_norm', 'linf_norm']
     data = []
+    print('Experiment 3: ')
     clean_accuracy, robust_accuracy, model_robust_accuracy, l2_norm, linf_norm = experiment_3(diff_model_name="simple_diffnet",
                                                                           train_model_archs=target_model_archs,
                                                                           attack=attacks,
@@ -268,6 +281,7 @@ def run_experiment4():
     attacks = [ATTACKS['pgd']]
     columns = ["config", "clean_accuracy", "robust_accuracy", "model_robust_accuracy", 'l2_norm', 'linf_norm']
     data = []
+    print('Experiment 4: ')
     clean_accuracy, robust_accuracy, model_robust_accuracy, l2_norm, linf_norm = experiment_3(diff_model_name=f"simple_diffnet",
                                                                           train_model_archs=target_model_archs,
                                                                           attack=attacks,
@@ -295,7 +309,9 @@ def run_experiment4():
 
 
 if __name__ == "__main__":
+    run_experiment1()
     # run_experiment2()
+    # run_experiment3()
     # run_experiment4()
-    attack_success = experiment_0(target_model_arch = (resnet18, "18"), attack = ATTACKS['pgd'], dataset_class = KMNIST)
-    print(attack_success)
+    # attack_success = experiment_0(target_model_arch = (resnet18, "18"), attack = ATTACKS['pgd'], dataset_class = KMNIST)
+    # print(attack_success)

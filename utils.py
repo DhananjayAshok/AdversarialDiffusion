@@ -201,9 +201,9 @@ def get_attack_success_measures(model, inps, advs, true_labels):
         success.append(not pred_same)
 
     robust_accuracy = robust_accuracy / n_points
-    if robust_accuracy > 1:
-        print(n_points)
-        pdb.set_trace()
+    # if robust_accuracy > 1:
+    #     print(n_points)
+        # pdb.set_trace()
     accuracy = n_correct / n_points
     if n_correct != 0:
         conditional_robust_accuracy = conditional_robust_accuracy / n_correct
@@ -281,7 +281,12 @@ def measure_attack_model_epsilon_bound(mixture_dset, attack_model, no_limit=250,
         elif isinstance(attack_model, SimpleDiff):
             attack_model.eval()
             with torch.no_grad():
-                noise = attack_model(X)
+                advs = attack_model(X)
+                # advs = X + noise
+                noise = X - advs
+                b = noise.shape[0]
+                noise = noise / (noise.reshape(b, -1).max(dim = -1)[0]).unsqueeze(dim = -1).unsqueeze(dim = -1).unsqueeze(dim = -1) * 0.01
+                # pdb.set_trace()
                 advs = X + noise
 
         l2_norm, linf_norm = measure_attack_stats(X, advs)
@@ -290,6 +295,86 @@ def measure_attack_model_epsilon_bound(mixture_dset, attack_model, no_limit=250,
 
         no += batch_size
     return np.array(l2_norm_list).mean(), np.array(linf_norm_list).mean()
+
+from plotting import plotting
+from tqdm import tqdm
+from numpy.random import choice
+import pdb
+def visualize_images(mixture_dset, attack_set, attack_model, filename, no_limit=250, batch_size=32):
+    from vae import VAEHolder
+    from simple_diffnet import SimpleDiff
+    import pdb
+    dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
+    no = 0
+    l2_norm_list = []
+    linf_norm_list = []
+
+    for j, (idxs, batch_data) in tqdm(enumerate(dataloader), total = len(dataloader)):
+        if no_limit is not None and no > no_limit:
+            break
+        X, true_labels = batch_data
+        attacked_images = torch.zeros_like(batch_data[0]).to(Parameters.device)
+
+        for idx in set(idxs.tolist()):
+            s_model = choice(mixture_dset.models[idx])
+            idx_mask = (idxs == idx)
+            X_slice = batch_data[0][idx_mask].to(Parameters.device)
+            y_slice = batch_data[1][idx_mask].to(Parameters.device)
+            print('before: ', attacked_images.shape)
+            # pdb.set_trace()
+            attacked_images[idx_mask] = attack_set(s_model, X_slice, y_slice, preprocessing=mixture_dset.preprocessings[idx])
+            print('after: ', attacked_images.shape)
+            # pdb.set_trace()
+
+        clean_images = batch_data[0].to(Parameters.device)
+        # clean_images = 2 * clean_images - 1
+
+        with torch.no_grad():
+            # attacked_images_hat = attack_model(clean_images)
+            advs = attack_model(clean_images)
+            # advs = X + noise
+            noise = clean_images - advs
+            b = noise.shape[0]
+            noise = noise / (noise.reshape(b, -1).max(dim = -1)[0]).unsqueeze(dim = -1).unsqueeze(dim = -1).unsqueeze(dim = -1) * 0.01
+            # pdb.set_trace()
+            attacked_images_hat = clean_images + noise
+
+        inp_preds = s_model(clean_images).argmax(-1)
+        adv_preds = s_model(attacked_images).argmax(-1)
+        model_attacked_preds = s_model(attacked_images_hat).argmax(-1)
+
+        import pdb
+        if len(adv_preds) != len(true_labels):
+            pdb.set_trace()
+
+        n_points = len(true_labels)
+
+        X_correct = []
+        advs_correct = []
+        model_attacked_correct = []
+        # pdb.set_trace()
+        for i in range(n_points):
+            inp_pred = inp_preds[i]
+            adv_pred = adv_preds[i]
+            model_attacked_pred = model_attacked_preds[i]
+            label = true_labels[i]
+
+            X_correct.append(inp_pred.item()) #int(inp_pred == label))
+            advs_correct.append(adv_pred.item()) #int(adv_pred == label))
+            model_attacked_correct.append(model_attacked_pred.item()) #int(model_attacked_pred == label))
+        safe_mkdir(filename)
+
+        plotting(clean_images.detach().cpu().numpy(),
+                X_correct = np.array(X_correct),
+                advs=attacked_images.detach().cpu().numpy(),
+                advs_correct = np.array(advs_correct),
+                model_attacked=(attacked_images_hat).cpu().numpy(),
+                model_attacked_correct = np.array(model_attacked_correct),
+                filename = filename + f'{j}.png')
+
+        no += batch_size
+    return np.array(l2_norm_list).mean(), np.array(linf_norm_list).mean()
+
 
 def measure_attack_success(mixture_dset, attack_set, target_model = None, no_limit=250, batch_size=32):
     dataloader = DataLoader(mixture_dset, batch_size=batch_size, shuffle=True)
@@ -314,6 +399,11 @@ def measure_attack_success(mixture_dset, attack_set, target_model = None, no_lim
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
         no += batch_size
+
+    print('attack')
+    # print('mean:', torch.mean( X_slice.cpu()- advs.cpu()))
+    # print('variance:', torch.std(X_slice.cpu() - advs.cpu()) ** 2)
+
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
 
@@ -362,7 +452,12 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
         elif isinstance(attack_model, SimpleDiff):
             attack_model.eval()
             with torch.no_grad():
-                noise = attack_model(X)
+                advs = attack_model(X)
+                # advs = X + noise
+                noise = X - advs
+                # pdb.set_trace()
+                b = noise.shape[0]
+                noise = noise / (noise.reshape(b, -1).max(dim = -1)[0] * 0.01).unsqueeze(dim = -1).unsqueeze(dim = -1).unsqueeze(dim = -1)
                 advs = X + noise
 
         for idx in set(index):
@@ -377,6 +472,11 @@ def measure_attack_model_success(mixture_dset, attack_model, target_model=None, 
                 clean_accuracy.append(metrics[0])
                 robust_accuracy.append(metrics[1])
         no += batch_size
+
+    print('model')
+    # print('mean:', torch.mean(X_slice.cpu() - advs.cpu()))
+    # print('variance:', torch.std(X_slice.cpu() - advs.cpu()) ** 2)
+
     return np.array(clean_accuracy).mean(), np.array(robust_accuracy).mean()
 
 

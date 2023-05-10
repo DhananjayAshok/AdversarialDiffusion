@@ -1,5 +1,2 @@
-dataset,attack,target_model,clean_accuracy,robust_accuracy,model_robust_accuracy
-MNIST,PGD,ResNet18,0.9765625,0.5889892578125,0.3359375
-MNIST,FGSM,ResNet18,0.96484375,0.8214111328125,0.73828125
-KMNIST,PGD,ResNet18,0.92578125,0.0556640625,0.53125
-KMNIST,FGSM,ResNet18,0.94921875,0.5885009765625,0.4453125
+dataset,attack,target_model,clean_accuracy,robust_accuracy,model_robust_accuracy,l2_norm,linf_norm
+KMNIST,FGSM,ResNet18,0.9375,0.6014404296875,0.3203125,0.1241820901632309,0.00999999709893018
