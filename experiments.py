@@ -310,8 +310,8 @@ def run_experiment4():
 
 if __name__ == "__main__":
     run_experiment1()
-    # run_experiment2()
-    # run_experiment3()
-    # run_experiment4()
+    run_experiment2()
+    run_experiment3()
+    run_experiment4()
     # attack_success = experiment_0(target_model_arch = (resnet18, "18"), attack = ATTACKS['pgd'], dataset_class = KMNIST)
     # print(attack_success)
