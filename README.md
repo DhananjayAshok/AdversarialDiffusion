@@ -15,7 +15,7 @@ tqdm==4.62.3
 
 `pip install -r requirements.txt`
 
-Download the ResNet trained checkpoints for every dataset from https://drive.google.com/file/d/1SowQ-KSCwM9lhUhIyaIWyJGH6GWssGo0/view . Copy the `ResNet_18`, `ResNet_18` and `ResNet_18` inside the zip into a new directory at this repo `models/`.
+Download the ResNet trained checkpoints for every dataset from https://drive.google.com/file/d/1SowQ-KSCwM9lhUhIyaIWyJGH6GWssGo0/view . Copy the `ResNet_18`, `ResNet_18` and `ResNet_18` inside the zip into a new directory under repo root `models/`.
 
 ## 2. Running Experiments
 
