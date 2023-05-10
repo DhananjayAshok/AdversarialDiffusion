@@ -196,8 +196,8 @@ def run_transfer_experiment():
 
 def run_experiment1():
     target_model_archs = [(resnet18, "18")]
-    attacks = [ATTACKS["fgsm"]] #[ATTACKS['pgd'],
-    dataset_classes = [KMNIST] #[MNIST, KMNIST]
+    attacks = [ATTACKS["fgsm"], ATTACKS['pgd']]
+    dataset_classes = [KMNIST, MNIST]
     columns = ["dataset", "attack", "target_model", "clean_accuracy", "robust_accuracy", "model_robust_accuracy", 'l2_norm', 'linf_norm']
     data = []
     for dataset_class in dataset_classes:
